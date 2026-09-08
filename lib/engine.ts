@@ -58,18 +58,27 @@ import type {
   UniverseId,
 } from "@/lib/types";
 
+const CACHE_VER = 3;
 const cache = new Map<string, { at: number; value: DashboardSnapshot }>();
 
-function overlayLast(bars: OhlcBar[], close: number): OhlcBar[] {
+function overlayLast(bars: OhlcBar[], close: number, changePct?: number): OhlcBar[] {
   if (!bars.length) return bars;
   const copy = bars.map((b) => ({ ...b }));
   const lastBar = copy[copy.length - 1];
-  const scale = close / lastBar.close;
-  lastBar.close = close;
-  lastBar.high = Math.max(lastBar.high, close);
-  lastBar.low = Math.min(lastBar.low, close);
-  if (Math.abs(scale - 1) < 0.08) {
-    lastBar.open = Number((lastBar.open * scale).toFixed(2));
+  if (typeof changePct === "number" && Number.isFinite(changePct) && copy.length >= 2) {
+    const prevClose = close / (1 + changePct / 100);
+    copy[copy.length - 2].close = Number(prevClose.toFixed(2));
+    lastBar.close = close;
+    lastBar.high = Math.max(lastBar.high, close);
+    lastBar.low = Math.min(lastBar.low, close);
+    return copy;
+  }
+  const scale = lastBar.close ? close / lastBar.close : 1;
+  for (const b of copy) {
+    b.open = Number((b.open * scale).toFixed(2));
+    b.high = Number((b.high * scale).toFixed(2));
+    b.low = Number((b.low * scale).toFixed(2));
+    b.close = Number((b.close * scale).toFixed(2));
   }
   return copy;
 }
@@ -189,14 +198,14 @@ async function tryLiveFlows() {
   return { flows: null as null, source: "demo" as DataSource };
 }
 
-async function tryLiveIndices(): Promise<Record<string, number>> {
-  const out: Record<string, number> = {};
+async function tryLiveIndices(): Promise<Record<string, { last: number; percentChange?: number }>> {
+  const out: Record<string, { last: number; percentChange?: number }> = {};
   if (dhanConfigured()) {
     try {
       const ids = Object.values(DHAN_INDEX_IDS).map((x) => x.id);
       const ltp = await dhanIndexLtp(ids);
       for (const [name, meta] of Object.entries(DHAN_INDEX_IDS)) {
-        if (ltp[String(meta.id)]) out[name] = ltp[String(meta.id)];
+        if (ltp[String(meta.id)]) out[name] = { last: ltp[String(meta.id)] };
       }
     } catch {
       // nse
@@ -205,7 +214,7 @@ async function tryLiveIndices(): Promise<Record<string, number>> {
   try {
     const indices = await nseAllIndices();
     for (const idx of indices) {
-      out[idx.index] = idx.last;
+      out[idx.index] = { last: idx.last, percentChange: idx.percentChange };
     }
   } catch {
     // ignore
@@ -227,7 +236,7 @@ export async function buildSnapshot(
   partialSettings?: Partial<StrategySettings>,
 ): Promise<DashboardSnapshot> {
   const settings = mergeSettings(partialSettings);
-  const key = `${universe}:${JSON.stringify(settings)}`;
+  const key = `${CACHE_VER}:${universe}:${JSON.stringify(settings)}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < 45_000) return hit.value;
 
@@ -247,7 +256,7 @@ export async function buildSnapshot(
 
   for (const meta of INDEX_META) {
     const live = liveIdx[meta.nse] ?? liveIdx[meta.symbol];
-    if (live) indexBars[meta.id] = overlayLast(indexBars[meta.id], live);
+    if (live) indexBars[meta.id] = overlayLast(indexBars[meta.id], live.last, live.percentChange);
   }
 
   const stockBars = new Map<string, OhlcBar[]>();

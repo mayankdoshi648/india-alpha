@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, X } from "lucide-react";
 import type { EmaStatus } from "@/lib/types";
 import { signed } from "@/lib/format";
 
@@ -139,6 +141,62 @@ export function Gauge({
         <p className="text-[11px] text-muted-foreground">{hint}</p>
       </div>
     </div>
+  );
+}
+
+export function Drawer({
+  open,
+  onClose,
+  children,
+  widthClass = "max-w-md",
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+  widthClass?: string;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [open, onClose]);
+
+  if (!open || typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex justify-end">
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/60"
+        aria-label="Close panel"
+        onClick={onClose}
+      />
+      <aside
+        className={cn(
+          "relative z-10 flex h-full w-full flex-col overflow-y-auto border-l border-white/10 bg-[#0c1526] shadow-2xl",
+          widthClass,
+        )}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-3 right-3 z-10 rounded-md p-1 text-muted-foreground hover:bg-white/10 hover:text-foreground"
+          aria-label="Close"
+        >
+          <X className="size-4" />
+        </button>
+        {children}
+      </aside>
+    </div>,
+    document.body,
   );
 }
 

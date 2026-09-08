@@ -138,9 +138,9 @@ export function UniverseTable({
                   </button>
                 </td>
                 <td className="sticky left-9 bg-[#0e1728] px-2 py-2">
-                  <button type="button" onClick={() => onOpen(r.symbol)} className="text-left">
-                    <p className="font-medium text-foreground">{r.symbol}</p>
-                    <p className="max-w-40 truncate text-[10px] text-muted-foreground">{r.name}</p>
+                  <button type="button" onClick={() => onOpen(r.symbol)} className="text-left hover:text-cyan-300">
+                    <p className="font-medium underline-offset-2 hover:underline">{r.symbol}</p>
+                    <p className="max-w-40 truncate text-[10px] text-muted-foreground">Open note · {r.name}</p>
                   </button>
                 </td>
                 <td className="px-2 py-2 capitalize">{r.cap}</td>

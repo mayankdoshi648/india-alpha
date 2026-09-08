@@ -11,15 +11,8 @@ import { SectorMatrix } from "@/components/dashboard/sector-matrix";
 import { UniverseTable } from "@/components/dashboard/universe-table";
 import { BreadthSection } from "@/components/dashboard/market-breadth";
 import { SettingsPanel } from "@/components/dashboard/settings-panel";
-import { Section, Panel } from "@/components/dashboard/primitives";
+import { Section, Panel, Drawer } from "@/components/dashboard/primitives";
 import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { PATTERN_LABEL, inr } from "@/lib/format";
 import { Chg, EmaPills } from "@/components/dashboard/primitives";
 import {
@@ -141,6 +134,7 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
           <div className="flex flex-wrap items-center gap-2">
             <select
               value={universe}
+              disabled={loading}
               onChange={(e) => {
                 const u = e.target.value as UniverseId;
                 setUniverse(u);
@@ -151,6 +145,9 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
               <option value="nifty50">Nifty 50</option>
               <option value="nifty500">Nifty 500</option>
             </select>
+            <span className="hidden font-mono text-[11px] text-muted-foreground sm:inline">
+              {data.stocks.length} names
+            </span>
             <select
               value={watch.active}
               onChange={(e) =>
@@ -169,7 +166,11 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
               {loading ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}
               Refresh
             </Button>
-            <Button size="sm" onClick={() => setSettingsOpen(true)}>
+            <Button
+              size="sm"
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+            >
               <Settings2 />
               Configure
             </Button>
@@ -200,10 +201,9 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
           </Panel>
         ) : null}
         {loading ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <LoaderCircle className="size-4 animate-spin text-cyan-400" />
-            Recalculating {universe === "nifty50" ? "Nifty 50" : "Nifty 500"}…
-          </p>
+          <div className="sticky top-24 z-30 rounded-lg border border-cyan-400/30 bg-cyan-950/80 px-3 py-2 text-sm text-cyan-100">
+            Recalculating {universe === "nifty50" ? "Nifty 50" : "Nifty 500"} ({data.stocks.length} names currently on the tape)…
+          </div>
         ) : null}
         {data ? (
           <>
@@ -254,6 +254,7 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
               subtitle="Every name in the selected Nifty 50 or Nifty 500 universe, with watchlist marks, cap, sector, returns, RSI, volume spike, gap, EMAs, distance from 20 EMA, 52-week range and earnings."
             >
               <UniverseTable
+                key={data.universe}
                 rows={data.stocks}
                 watch={watchSet}
                 onToggleWatch={toggleWatch}
@@ -291,62 +292,60 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
         onApplyTemplate={applyTemplate}
       />
 
-      <Sheet open={Boolean(openSymbol)} onOpenChange={(o) => !o && setOpenSymbol(null)}>
-        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">
-          {row ? (
-            <>
-              <SheetHeader>
-                <SheetTitle>
-                  {row.symbol}
-                  <span className="ml-2 text-sm font-normal text-muted-foreground">{row.name}</span>
-                </SheetTitle>
-                <SheetDescription>
-                  {row.sector} · {row.cap} cap · Stage 2 {row.stage2Score}/7
-                </SheetDescription>
-              </SheetHeader>
-              <div className="space-y-4 px-4 pb-8">
-                <div className="flex items-end justify-between">
-                  <p className="font-mono text-3xl tabular-nums">{inr(row.cmp)}</p>
-                  <Chg value={row.change1d} />
-                </div>
-                <EmaPills emas={row.emas} />
-                <div className="flex flex-wrap gap-1">
-                  {row.patterns.map((p) => (
-                    <span key={p} className="rounded border border-white/10 px-2 py-0.5 text-[11px]">
-                      {PATTERN_LABEL[p]}
-                    </span>
-                  ))}
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <Meta k="RSI(14)" v={row.rsi.toFixed(1)} />
-                  <Meta k="Vol spike" v={`${row.volSpike}x`} />
-                  <Meta k="% vs 20 EMA" v={`${row.distFrom20Ema}%`} />
-                  <Meta k="Below 52W high" v={`${row.below52wHigh}%`} />
-                  <Meta k="EMA stack" v={row.emaStack} />
-                  <Meta k="Weekly stack" v={row.weeklyStack} />
-                </div>
-                <div>
-                  <p className="mb-1 text-xs text-muted-foreground">Research note (private, this browser)</p>
-                  <textarea
-                    value={watch.notes[row.symbol] ?? ""}
-                    onChange={(e) =>
-                      persistWatch({
-                        ...watch,
-                        notes: { ...watch.notes, [row.symbol]: e.target.value },
-                      })
-                    }
-                    placeholder="Thesis, risk, what would invalidate this setup…"
-                    className="min-h-28 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm"
-                  />
-                </div>
-                <Button size="sm" variant="outline" onClick={() => toggleWatch(row.symbol)}>
-                  {watchSet.has(row.symbol) ? "Remove from active watchlist" : `Add to ${watch.active} watchlist`}
-                </Button>
+      <Drawer open={Boolean(row)} onClose={() => setOpenSymbol(null)} widthClass="max-w-lg">
+        {row ? (
+          <>
+            <div className="p-4 pr-12">
+              <h2 className="text-lg font-medium">
+                {row.symbol}
+                <span className="ml-2 text-sm font-normal text-muted-foreground">{row.name}</span>
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {row.sector} · {row.cap} cap · Stage 2 {row.stage2Score}/7
+              </p>
+            </div>
+            <div className="space-y-4 px-4 pb-8">
+              <div className="flex items-end justify-between">
+                <p className="font-mono text-3xl tabular-nums">{inr(row.cmp)}</p>
+                <Chg value={row.change1d} />
               </div>
-            </>
-          ) : null}
-        </SheetContent>
-      </Sheet>
+              <EmaPills emas={row.emas} />
+              <div className="flex flex-wrap gap-1">
+                {row.patterns.map((p) => (
+                  <span key={p} className="rounded border border-white/10 px-2 py-0.5 text-[11px]">
+                    {PATTERN_LABEL[p]}
+                  </span>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <Meta k="RSI(14)" v={row.rsi.toFixed(1)} />
+                <Meta k="Vol spike" v={`${row.volSpike}x`} />
+                <Meta k="% vs 20 EMA" v={`${row.distFrom20Ema}%`} />
+                <Meta k="Below 52W high" v={`${row.below52wHigh}%`} />
+                <Meta k="EMA stack" v={row.emaStack} />
+                <Meta k="Weekly stack" v={row.weeklyStack} />
+              </div>
+              <div>
+                <p className="mb-1 text-xs text-muted-foreground">Research note (private, this browser)</p>
+                <textarea
+                  value={watch.notes[row.symbol] ?? ""}
+                  onChange={(e) =>
+                    persistWatch({
+                      ...watch,
+                      notes: { ...watch.notes, [row.symbol]: e.target.value },
+                    })
+                  }
+                  placeholder="Thesis, risk, what would invalidate this setup…"
+                  className="min-h-28 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm"
+                />
+              </div>
+              <Button size="sm" variant="outline" onClick={() => toggleWatch(row.symbol)}>
+                {watchSet.has(row.symbol) ? "Remove from active watchlist" : `Add to ${watch.active} watchlist`}
+              </Button>
+            </div>
+          </>
+        ) : null}
+      </Drawer>
     </div>
   );
 }

@@ -138,6 +138,17 @@ export function generateIndexPath(id: string, days: string[], endPrice: number):
     closes.push((closes[i - 1] ?? target) * 0.15 + target * 0.85 * noise);
   }
   closes[n - 1] = endPrice;
+  const lastMove: Record<string, number> = {
+    nifty: -0.0061,
+    sensex: -0.0073,
+    banknifty: -0.0054,
+    largecap: -0.0058,
+    midcap: -0.0075,
+    smallcap: -0.009,
+    vix: 0.042,
+  };
+  const move = lastMove[id] ?? -0.004;
+  closes[n - 2] = endPrice / (1 + move);
   if (id === "nifty") {
     closes[n - 2] = 23779.15;
     closes[n - 1] = 23635.1;
