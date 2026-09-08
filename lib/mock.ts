@@ -44,8 +44,8 @@ function applyPattern(symbol: string, bars: OhlcBar[]): OhlcBar[] {
   };
 
   if (["BEL", "HAL", "MAXHEALTH", "MAZDOCK"].includes(symbol)) {
-    reshape(n - 80, (bar, i) => {
-      const t = i / 80;
+    reshape(n - 80, (bar, i, slice) => {
+      const t = i / slice.length;
       const lift = 0.78 + t * 0.32;
       bar.close *= lift;
       bar.high = Math.max(bar.high * lift, bar.close * 1.01);
@@ -138,6 +138,14 @@ export function generateIndexPath(id: string, days: string[], endPrice: number):
     closes.push((closes[i - 1] ?? target) * 0.15 + target * 0.85 * noise);
   }
   closes[n - 1] = endPrice;
+  if (id === "nifty") {
+    closes[n - 2] = 23779.15;
+    closes[n - 1] = 23635.1;
+  }
+  if (id === "sensex") {
+    closes[n - 2] = 76132.81;
+    closes[n - 1] = 75577.58;
+  }
   return closes.map((c, i) => {
     const prev = closes[i - 1] ?? c;
     const vol = 1 + Math.abs(gaussian(rand)) * 0.006;
