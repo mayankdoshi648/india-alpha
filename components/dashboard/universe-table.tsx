@@ -126,11 +126,19 @@ export function UniverseTable({
           </thead>
           <tbody>
             {shown.map((r) => (
-              <tr key={r.symbol} className="border-b border-white/5 hover:bg-white/4">
+              <tr
+                key={r.symbol}
+                id={`stock-${r.symbol}`}
+                className="cursor-pointer border-b border-white/5 hover:bg-white/4"
+                onClick={() => onOpen(r.symbol)}
+              >
                 <td className="sticky left-0 bg-[#0e1728] px-2 py-2">
                   <button
                     type="button"
-                    onClick={() => onToggleWatch(r.symbol)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleWatch(r.symbol);
+                    }}
                     className={cn("rounded p-1", watch.has(r.symbol) ? "text-amber-300" : "text-muted-foreground")}
                     aria-label="Watchlist"
                   >

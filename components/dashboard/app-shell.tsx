@@ -42,12 +42,12 @@ const EMPTY_WATCH: WatchStore = {
   notes: {},
 };
 
-export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
-  const [universe, setUniverse] = useState<UniverseId>(initial.universe);
-  const [settings, setSettings] = useState<StrategySettings>(initial.settings);
-  const [data, setData] = useState<DashboardSnapshot>(initial);
+export function MarketDesk() {
+  const [universe, setUniverse] = useState<UniverseId>("nifty50");
+  const [settings, setSettings] = useState<StrategySettings>(DEFAULT_SETTINGS);
+  const [data, setData] = useState<DashboardSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [watch, setWatch] = useState<WatchStore>(EMPTY_WATCH);
   const [openSymbol, setOpenSymbol] = useState<string | null>(null);
@@ -74,7 +74,7 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/market", {
+      const res = await fetch(`/api/market?universe=${u}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ universe: u, settings: s }),
@@ -88,6 +88,14 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
       setLoading(false);
     }
   }, [universe, settings]);
+
+  /* eslint-disable react-hooks/set-state-in-effect -- fetch the tape after the thin client shell hydrates */
+  useEffect(() => {
+    void load("nifty50", DEFAULT_SETTINGS);
+    // First paint only; later loads are triggered by universe/settings controls.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const watchSet = useMemo(
     () => new Set(Object.values(watch.lists).flat()),
@@ -132,21 +140,34 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <select
-              value={universe}
-              disabled={loading}
-              onChange={(e) => {
-                const u = e.target.value as UniverseId;
-                setUniverse(u);
-                void load(u, settings);
-              }}
-              className="h-8 rounded-lg border border-white/10 bg-[#0e1728] px-2 text-sm"
-            >
-              <option value="nifty50">Nifty 50</option>
-              <option value="nifty500">Nifty 500</option>
-            </select>
-            <span className="hidden font-mono text-[11px] text-muted-foreground sm:inline">
-              {data.stocks.length} names
+            <div className="flex overflow-hidden rounded-lg border border-white/10">
+              <button
+                type="button"
+                id="universe-nifty50"
+                disabled={loading}
+                onClick={() => {
+                  setUniverse("nifty50");
+                  void load("nifty50", settings);
+                }}
+                className={`h-8 px-3 text-sm ${universe === "nifty50" ? "bg-cyan-400/20 text-cyan-100" : "text-muted-foreground hover:bg-white/5"}`}
+              >
+                Nifty 50
+              </button>
+              <button
+                type="button"
+                id="universe-nifty500"
+                disabled={loading}
+                onClick={() => {
+                  setUniverse("nifty500");
+                  void load("nifty500", settings);
+                }}
+                className={`h-8 px-3 text-sm ${universe === "nifty500" ? "bg-cyan-400/20 text-cyan-100" : "text-muted-foreground hover:bg-white/5"}`}
+              >
+                Nifty 500
+              </button>
+            </div>
+            <span className="font-mono text-[11px] text-muted-foreground">
+              {data ? `${data.universe === "nifty500" ? "Nifty 500" : "Nifty 50"} · ${data.stocks.length} names` : "Loading tape…"}
             </span>
             <select
               value={watch.active}
@@ -166,14 +187,15 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
               {loading ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}
               Refresh
             </Button>
-            <Button
-              size="sm"
+            <button
               type="button"
+              id="configure-desk"
               onClick={() => setSettingsOpen(true)}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-cyan-400 px-3 text-sm font-medium text-slate-950 hover:bg-cyan-300"
             >
-              <Settings2 />
+              <Settings2 className="size-3.5" />
               Configure
-            </Button>
+            </button>
           </div>
         </div>
         <nav className="mx-auto hidden max-w-[1600px] gap-3 overflow-x-auto px-4 pb-2 text-[11px] text-muted-foreground md:flex">
@@ -202,7 +224,9 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
         ) : null}
         {loading ? (
           <div className="sticky top-24 z-30 rounded-lg border border-cyan-400/30 bg-cyan-950/80 px-3 py-2 text-sm text-cyan-100">
-            Recalculating {universe === "nifty50" ? "Nifty 50" : "Nifty 500"} ({data.stocks.length} names currently on the tape)…
+            {data
+              ? `Recalculating ${universe === "nifty50" ? "Nifty 50" : "Nifty 500"}…`
+              : "Building the India market tape…"}
           </div>
         ) : null}
         {data ? (

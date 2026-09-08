@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { ArrowDownRight, ArrowUpRight, X } from "lucide-react";
 import type { EmaStatus } from "@/lib/types";
@@ -169,10 +168,10 @@ export function Drawer({
     };
   }, [open, onClose]);
 
-  if (!open || typeof document === "undefined") return null;
+  if (!open) return null;
 
-  return createPortal(
-    <div className="fixed inset-0 z-[100] flex justify-end">
+  return (
+    <div className="fixed inset-0 z-[100] flex justify-end" role="dialog" aria-modal="true">
       <button
         type="button"
         className="absolute inset-0 bg-black/60"
@@ -195,8 +194,7 @@ export function Drawer({
         </button>
         {children}
       </aside>
-    </div>,
-    document.body,
+    </div>
   );
 }
 
