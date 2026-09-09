@@ -42,12 +42,12 @@ const EMPTY_WATCH: WatchStore = {
   notes: {},
 };
 
-export function MarketDesk() {
-  const [universe, setUniverse] = useState<UniverseId>("nifty50");
+export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
+  const [universe, setUniverse] = useState<UniverseId>(initial.universe);
   const [settings, setSettings] = useState<StrategySettings>(DEFAULT_SETTINGS);
-  const [data, setData] = useState<DashboardSnapshot | null>(null);
+  const [data, setData] = useState<DashboardSnapshot>(initial);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [watch, setWatch] = useState<WatchStore>(EMPTY_WATCH);
   const [openSymbol, setOpenSymbol] = useState<string | null>(null);
@@ -78,6 +78,7 @@ export function MarketDesk() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ universe: u, settings: s }),
+        signal: AbortSignal.timeout(25_000),
       });
       if (!res.ok) throw new Error(`Market API ${res.status}`);
       const json = (await res.json()) as DashboardSnapshot;
@@ -88,14 +89,6 @@ export function MarketDesk() {
       setLoading(false);
     }
   }, [universe, settings]);
-
-  /* eslint-disable react-hooks/set-state-in-effect -- fetch the tape after the thin client shell hydrates */
-  useEffect(() => {
-    void load("nifty50", DEFAULT_SETTINGS);
-    // First paint only; later loads are triggered by universe/settings controls.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   const watchSet = useMemo(
     () => new Set(Object.values(watch.lists).flat()),
@@ -167,7 +160,7 @@ export function MarketDesk() {
               </button>
             </div>
             <span className="font-mono text-[11px] text-muted-foreground">
-              {data ? `${data.universe === "nifty500" ? "Nifty 500" : "Nifty 50"} · ${data.stocks.length} names` : "Loading tape…"}
+              {`${data.universe === "nifty500" ? "Nifty 500" : "Nifty 50"} · ${data.stocks.length} names`}
             </span>
             <select
               value={watch.active}
@@ -224,13 +217,10 @@ export function MarketDesk() {
         ) : null}
         {loading ? (
           <div className="sticky top-24 z-30 rounded-lg border border-cyan-400/30 bg-cyan-950/80 px-3 py-2 text-sm text-cyan-100">
-            {data
-              ? `Recalculating ${universe === "nifty50" ? "Nifty 50" : "Nifty 500"}…`
-              : "Building the India market tape…"}
+            Recalculating {universe === "nifty50" ? "Nifty 50" : "Nifty 500"}…
           </div>
         ) : null}
-        {data ? (
-          <>
+        <>
             <Section
               id="indices"
               kicker="Section 01"
@@ -301,8 +291,7 @@ export function MarketDesk() {
                 otherwise the desk runs on a deterministic September 2026 market tape so every panel stays usable.
               </Panel>
             ) : null}
-          </>
-        ) : null}
+        </>
       </main>
 
       <SettingsPanel

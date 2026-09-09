@@ -12,7 +12,13 @@ cp .env.example .env.local   # optional — add Dhan keys for live data
 npm run dev
 ```
 
-Open [http://127.0.0.1:43147](http://127.0.0.1:43147).
+Open [http://127.0.0.1:43147](http://127.0.0.1:43147). The first paint is server-rendered so the tape shows even before client JS hydrates.
+
+For a production-like local run (required if a preview iframe blocks `/_next` from `next dev`):
+
+```bash
+npm run build && npm run start
+```
 
 ## DhanHQ
 
