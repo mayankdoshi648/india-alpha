@@ -17,13 +17,15 @@ import { SessionBar } from "@/components/dashboard/session-bar";
 import { MacroStrip } from "@/components/dashboard/macro-strip";
 import { DeskAlerts } from "@/components/dashboard/desk-alerts";
 import { StockChart } from "@/components/dashboard/stock-chart";
+import { PulseBar } from "@/components/dashboard/pulse-bar";
+import { Movers, NameMosaic } from "@/components/dashboard/movers";
 import { Section, Panel, Drawer } from "@/components/dashboard/primitives";
 import { Button } from "@/components/ui/button";
 import { PATTERN_LABEL, inr } from "@/lib/format";
 import { Chg, EmaPills } from "@/components/dashboard/primitives";
 import { indiaSession } from "@/lib/session";
+import { cn } from "@/lib/utils";
 import {
-  Activity,
   KeyRound,
   Landmark,
   LoaderCircle,
@@ -37,6 +39,33 @@ const LISTS = [
   { id: "breakouts", name: "Breakouts" },
   { id: "research", name: "Research" },
 ] as const;
+
+type DeskTab = "tape" | "setups" | "fo" | "sectors" | "universe" | "breadth" | "feed";
+
+const TABS: { id: DeskTab; label: string; hint: string }[] = [
+  { id: "tape", label: "Tape", hint: "1" },
+  { id: "setups", label: "Setups", hint: "2" },
+  { id: "fo", label: "F&O", hint: "3" },
+  { id: "sectors", label: "Sectors", hint: "4" },
+  { id: "universe", label: "Universe", hint: "5" },
+  { id: "breadth", label: "Breadth", hint: "6" },
+  { id: "feed", label: "Feed", hint: "7" },
+];
+
+const HASH_TAB: Record<string, DeskTab> = {
+  dhan: "feed",
+  alerts: "tape",
+  session: "tape",
+  indices: "tape",
+  setups: "setups",
+  derivatives: "fo",
+  ladder: "fo",
+  gauges: "breadth",
+  sectors: "sectors",
+  universe: "universe",
+  breadth: "breadth",
+  feed: "feed",
+};
 
 type WatchStore = {
   active: (typeof LISTS)[number]["id"];
@@ -65,6 +94,13 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
   const [dhanBusy, setDhanBusy] = useState(false);
   const [dhanStatus, setDhanStatus] = useState<string | null>(null);
   const [dhanError, setDhanError] = useState<string | null>(null);
+  const [tab, setTab] = useState<DeskTab>("tape");
+
+  function goTab(next: DeskTab) {
+    setTab(next);
+    const hash = next === "tape" ? "indices" : next === "fo" ? "derivatives" : next === "feed" ? "dhan" : next;
+    window.history.replaceState(null, "", `#${hash}`);
+  }
 
   /* eslint-disable react-hooks/set-state-in-effect -- hydrate private lists from localStorage after paint */
   useEffect(() => {
@@ -90,6 +126,36 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
     }
     // First hydrate only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const apply = () => {
+      const h = window.location.hash.replace("#", "");
+      if (HASH_TAB[h]) setTab(HASH_TAB[h]);
+    };
+    apply();
+    window.addEventListener("hashchange", apply);
+    return () => window.removeEventListener("hashchange", apply);
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) {
+        return;
+      }
+      const map: Record<string, DeskTab> = {
+        "1": "tape",
+        "2": "setups",
+        "3": "fo",
+        "4": "sectors",
+        "5": "universe",
+        "6": "breadth",
+        "7": "feed",
+      };
+      if (map[e.key]) goTab(map[e.key]);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -225,108 +291,113 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(1200px_circle_at_10%_-10%,rgba(34,211,238,0.12),transparent_40%),radial-gradient(900px_circle_at_90%_0%,rgba(16,185,129,0.08),transparent_35%),#070b14] text-slate-100">
-      <header className="sticky top-0 z-40 border-b border-white/8 bg-[#070b14]/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1600px] flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-cyan-400/15 text-cyan-300">
-              <Landmark className="size-4" />
-            </div>
-            <div>
-              <p className="text-[11px] tracking-[0.2em] text-cyan-400/80 uppercase">India Market Desk</p>
-              <h1 className="text-base font-medium">Nifty 50 / Nifty 500 market view</h1>
-              <SessionBar data={data} token={dhan.accessToken} />
-            </div>
-          </div>
+    <div className="min-h-screen bg-[#070b14] text-slate-100">
+      <header className="sticky top-0 z-40 border-b border-white/8 bg-[#070b14]/92 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1680px] flex-col gap-2 px-3 py-2">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex overflow-hidden rounded-lg border border-white/10">
+            <div className="flex items-center gap-2">
+              <div className="flex size-8 items-center justify-center rounded-md bg-cyan-400/15 text-cyan-300">
+                <Landmark className="size-3.5" />
+              </div>
+              <div>
+                <p className="text-[10px] tracking-[0.18em] text-cyan-400/80 uppercase">India Market Desk</p>
+                <SessionBar data={data} token={dhan.accessToken} />
+              </div>
+            </div>
+            <PulseBar data={data} />
+            <div className="flex flex-wrap items-center gap-1.5">
+              <div className="flex overflow-hidden rounded-md border border-white/10">
+                <button
+                  type="button"
+                  id="universe-nifty50"
+                  disabled={loading}
+                  onClick={() => {
+                    setUniverse("nifty50");
+                    void load("nifty50", settings);
+                  }}
+                  className={`h-7 px-2.5 text-[12px] ${universe === "nifty50" ? "bg-cyan-400/20 text-cyan-100" : "text-muted-foreground hover:bg-white/5"}`}
+                >
+                  N50
+                </button>
+                <button
+                  type="button"
+                  id="universe-nifty500"
+                  disabled={loading}
+                  onClick={() => {
+                    setUniverse("nifty500");
+                    void load("nifty500", settings);
+                  }}
+                  className={`h-7 px-2.5 text-[12px] ${universe === "nifty500" ? "bg-cyan-400/20 text-cyan-100" : "text-muted-foreground hover:bg-white/5"}`}
+                >
+                  N500
+                </button>
+              </div>
+              <select
+                value={watch.active}
+                onChange={(e) =>
+                  persistWatch({ ...watch, active: e.target.value as WatchStore["active"] })
+                }
+                className="h-7 rounded-md border border-white/10 bg-[#0e1728] px-2 text-[12px]"
+              >
+                {LISTS.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name} ({watch.lists[l.id].length})
+                  </option>
+                ))}
+              </select>
               <button
                 type="button"
-                id="universe-nifty50"
-                disabled={loading}
-                onClick={() => {
-                  setUniverse("nifty50");
-                  void load("nifty50", settings);
-                }}
-                className={`h-8 px-3 text-sm ${universe === "nifty50" ? "bg-cyan-400/20 text-cyan-100" : "text-muted-foreground hover:bg-white/5"}`}
+                id="dhan-keys-link"
+                onClick={() => goTab("feed")}
+                className={cn(
+                  "inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[12px]",
+                  dhanLive
+                    ? "border-emerald-400/30 text-emerald-200"
+                    : "border-cyan-400/40 text-cyan-200 hover:bg-cyan-400/10",
+                )}
               >
-                Nifty 50
+                <KeyRound className="size-3.5" />
+                {dhanLive ? "Dhan" : "Keys"}
               </button>
+              <Button size="sm" variant="outline" className="h-7" onClick={() => void load()} disabled={loading}>
+                {loading ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}
+              </Button>
               <button
                 type="button"
-                id="universe-nifty500"
-                disabled={loading}
-                onClick={() => {
-                  setUniverse("nifty500");
-                  void load("nifty500", settings);
-                }}
-                className={`h-8 px-3 text-sm ${universe === "nifty500" ? "bg-cyan-400/20 text-cyan-100" : "text-muted-foreground hover:bg-white/5"}`}
+                id="configure-desk"
+                onClick={() => setSettingsOpen(true)}
+                className="inline-flex h-7 items-center gap-1 rounded-md bg-cyan-400 px-2.5 text-[12px] font-medium text-slate-950 hover:bg-cyan-300"
               >
-                Nifty 500
+                <Settings2 className="size-3.5" />
+                Config
               </button>
             </div>
-            <span className="font-mono text-[11px] text-muted-foreground">
-              {`${data.universe === "nifty500" ? "Nifty 500" : "Nifty 50"} · ${data.stocks.length} names`}
-            </span>
-            <select
-              value={watch.active}
-              onChange={(e) =>
-                persistWatch({ ...watch, active: e.target.value as WatchStore["active"] })
-              }
-              className="h-8 rounded-lg border border-white/10 bg-[#0e1728] px-2 text-sm"
-            >
-              {LISTS.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name} watchlist ({watch.lists[l.id].length})
-                </option>
-              ))}
-            </select>
-            <SourceBadge data={data} />
-            <a
-              id="dhan-keys-link"
-              href="#dhan"
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-cyan-400/40 px-3 text-sm text-cyan-200 hover:bg-cyan-400/10"
-            >
-              <KeyRound className="size-3.5" />
-              Dhan keys
-            </a>
-            <Button size="sm" variant="outline" onClick={() => void load()} disabled={loading}>
-              {loading ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}
-              Refresh
-            </Button>
-            <button
-              type="button"
-              id="configure-desk"
-              onClick={() => setSettingsOpen(true)}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-cyan-400 px-3 text-sm font-medium text-slate-950 hover:bg-cyan-300"
-            >
-              <Settings2 className="size-3.5" />
-              Configure
-            </button>
           </div>
+          <nav className="flex items-center gap-1 overflow-x-auto">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => goTab(t.id)}
+                className={cn(
+                  "inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12px]",
+                  tab === t.id
+                    ? "bg-cyan-400/15 text-cyan-100"
+                    : "text-muted-foreground hover:bg-white/5 hover:text-slate-200",
+                )}
+              >
+                {t.label}
+                <kbd className="hidden font-mono text-[10px] text-white/30 sm:inline">{t.hint}</kbd>
+              </button>
+            ))}
+            <span className="ml-auto hidden font-mono text-[10px] text-muted-foreground sm:inline">
+              {data.stocks.length} names · keys 1–7
+            </span>
+          </nav>
         </div>
-        <nav className="mx-auto hidden max-w-[1600px] gap-3 overflow-x-auto px-4 pb-2 text-[11px] text-muted-foreground md:flex">
-          {[
-            ["dhan", "Dhan"],
-            ["alerts", "Alerts"],
-            ["session", "Session"],
-            ["indices", "Indices"],
-            ["setups", "Setups"],
-            ["derivatives", "Institutional F&O"],
-            ["ladder", "OI ladder"],
-            ["gauges", "EMA breadth"],
-            ["sectors", "Sectors"],
-            ["universe", "Universe"],
-            ["breadth", "Market breadth"],
-          ].map(([id, label]) => (
-            <a key={id} href={`#${id}`} className="hover:text-cyan-300">
-              {label}
-            </a>
-          ))}
-        </nav>
       </header>
 
-      <main className="mx-auto flex max-w-[1600px] flex-1 flex-col gap-10 px-4 py-6">
+      <main className="mx-auto flex max-w-[1680px] flex-1 flex-col gap-3 px-3 py-3">
         {error ? (
           <Panel className="flex items-center gap-3 text-rose-300">
             <WifiOff className="size-4" />
@@ -334,114 +405,91 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
           </Panel>
         ) : null}
         {loading ? (
-          <div className="sticky top-24 z-30 rounded-lg border border-cyan-400/30 bg-cyan-950/80 px-3 py-2 text-sm text-cyan-100">
+          <div className="rounded-md border border-cyan-400/30 bg-cyan-950/80 px-3 py-1.5 text-sm text-cyan-100">
             Recalculating {universe === "nifty50" ? "Nifty 50" : "Nifty 500"}…
           </div>
         ) : null}
-        <Section
-          id="dhan"
-          kicker="Data feed"
-          title="DhanHQ API keys"
-          subtitle="Paste a fresh 24-hour JWT from web.dhan.co → My Profile → Access DhanHQ APIs. Client ID is optional."
-        >
-          <DhanConnect
-            stored={dhan}
-            liveConnected={dhanLive}
-            busy={dhanBusy}
-            status={dhanStatus}
-            error={dhanError}
-            onConnect={connectDhan}
-            onDisconnect={disconnectDhan}
-          />
-        </Section>
-        <Section
-          id="alerts"
-          kicker="Desk radar"
-          title="Live alerts"
-          subtitle="FII streaks, VIX regime, PCR extremes, oversold-near-20 names, volume surges and breakouts. Click a name to open the chart."
-        >
-          <DeskAlerts alerts={data.alerts ?? []} onPick={setOpenSymbol} />
-        </Section>
-        <Section
-          id="session"
-          kicker="Risk tape"
-          title="Session macro"
-          subtitle="Overnight gap, India VIX vs 20-day realized vol, USD/INR, 10Y G-Sec and crude. Auto-refresh runs while NSE is open."
-        >
-          <MacroStrip tiles={data.macro ?? []} />
-        </Section>
-        <>
-            <Section
-              id="indices"
-              kicker="Section 01"
-              title="Index tape"
-              subtitle="CMP, session gain and whether price sits above or below the 10 / 20 / 50 / 200 EMAs. Green pill = above, red = below."
-            >
+
+        {tab === "tape" ? (
+          <div className="space-y-3">
+            <Section id="alerts" kicker="Radar" title="Alerts">
+              <DeskAlerts alerts={data.alerts ?? []} onPick={setOpenSymbol} />
+            </Section>
+            <Section id="session" kicker="Risk" title="Session macro">
+              <MacroStrip tiles={data.macro ?? []} />
+            </Section>
+            <Section id="indices" kicker="01" title="Index tape">
               <IndexTiles tiles={data.indices} />
             </Section>
-            <Section
-              id="setups"
-              kicker="Scanner"
-              title="Stage breakouts, volume, VCP, divergence, pivots"
-              subtitle="Names currently printing a qualified base breakout, volume surge, VCP, hidden/bullish/bearish divergence, pivot reclaim or oversold pullback."
-            >
-              <SetupRadar hits={data.patterns} onPick={setOpenSymbol} />
-            </Section>
-            <Section
-              id="derivatives"
-              kicker="Section 02"
-              title="Institutional derivatives and option positioning radar"
-              subtitle="FII/DII cash flow, India VIX regime, Nifty PCR and max pain. Live Dhan option chain and NSE FII/DII when credentials or the exchange feed are available."
-            >
+            <NameMosaic rows={data.stocks} onOpen={setOpenSymbol} />
+            <Movers rows={data.stocks} onOpen={setOpenSymbol} />
+          </div>
+        ) : null}
+
+        {tab === "setups" ? (
+          <Section id="setups" kicker="Scanner" title="Setups">
+            <SetupRadar hits={data.patterns} onPick={setOpenSymbol} />
+          </Section>
+        ) : null}
+
+        {tab === "fo" ? (
+          <div className="space-y-3">
+            <Section id="derivatives" kicker="02" title="Institutional F&O">
               <Derivatives data={data.derivatives} />
             </Section>
-            <Section
-              id="ladder"
-              kicker="F&O"
-              title="Nifty option OI ladder"
-              subtitle="Call OI, strike, put OI around ATM. Highlighted row is at-the-money. Walls are the strikes with the most OI."
-            >
+            <Section id="ladder" kicker="OI" title="Nifty option ladder">
               <OptionLadder data={data.derivatives} />
             </Section>
-            <Section
-              id="gauges"
-              kicker="Section 03"
-              title="Moving average breadth gauge"
-              subtitle="Four circles for 10 / 20 / 50 / 200 EMAs. Toggle daily, weekly or monthly to see what share of the universe is above each average."
-            >
+          </div>
+        ) : null}
+
+        {tab === "sectors" ? (
+          <Section id="sectors" kicker="04" title="Sector rotation">
+            <SectorMatrix sectors={data.sectors} heatmap={data.heatmap} />
+          </Section>
+        ) : null}
+
+        {tab === "universe" ? (
+          <Section id="universe" kicker="05" title="Universe inspector">
+            <UniverseTable
+              key={data.universe}
+              rows={data.stocks}
+              watch={watchSet}
+              onToggleWatch={toggleWatch}
+              onOpen={setOpenSymbol}
+            />
+          </Section>
+        ) : null}
+
+        {tab === "breadth" ? (
+          <div className="space-y-3">
+            <Section id="gauges" kicker="03" title="EMA breadth">
               <BreadthGauges gauges={data.breadthGauges} />
             </Section>
-            <Section
-              id="sectors"
-              kicker="Section 04"
-              title="Sector health matrix and heatmap"
-              subtitle="Sector tiles, a four-colour rotation map (emerald leading, cyan improving, amber weakening, rose lagging) with named sector dots, and a constituent heatmap."
-            >
-              <SectorMatrix sectors={data.sectors} heatmap={data.heatmap} />
-            </Section>
-            <Section
-              id="universe"
-              kicker="Section 05"
-              title="Universe component breadth inspector"
-              subtitle="Tape for every name: day range, 1D/1W/1M/3M, streak, beta, RSI, volume vs average, turnover, ATR, realized vol, CMF, VWAP, EMA stack, days above 20, % vs 20/50/200, pivot, delivery, RS vs Nifty, OI build, 52-week high/low, Stage 2, earnings and setups. Filter by sector rotation colour and export CSV."
-            >
-              <UniverseTable
-                key={data.universe}
-                rows={data.stocks}
-                watch={watchSet}
-                onToggleWatch={toggleWatch}
-                onOpen={setOpenSymbol}
-              />
-            </Section>
-            <Section
-              id="breadth"
-              kicker="Breadth & trend"
-              title="Seven breadth indicators and trend filters"
-              subtitle="Advance/decline, EMA participation, RSI strength and pivot posture with 60-session drill-down, plus EMA stack, convergence, bullish crosses and RSI-above-MA counts."
-            >
+            <Section id="breadth" kicker="Trend" title="Market breadth">
               <BreadthSection breadth={data.breadth} trend={data.trend} />
             </Section>
-        </>
+          </div>
+        ) : null}
+
+        {tab === "feed" ? (
+          <Section
+            id="dhan"
+            kicker="Feed"
+            title="DhanHQ keys"
+            subtitle="Paste a 24-hour JWT from web.dhan.co. Client ID is optional."
+          >
+            <DhanConnect
+              stored={dhan}
+              liveConnected={dhanLive}
+              busy={dhanBusy}
+              status={dhanStatus}
+              error={dhanError}
+              onConnect={connectDhan}
+              onDisconnect={disconnectDhan}
+            />
+          </Section>
+        ) : null}
       </main>
 
       <SettingsPanel
@@ -532,16 +580,6 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
         ) : null}
       </Drawer>
     </div>
-  );
-}
-
-function SourceBadge({ data }: { data: DashboardSnapshot | null }) {
-  if (!data) return null;
-  return (
-    <span className="hidden items-center gap-1 rounded-full border border-white/10 px-2 py-1 text-[11px] text-muted-foreground sm:inline-flex">
-      <Activity className="size-3 text-cyan-400" />
-      quotes {data.sources.quotes} · F&O {data.sources.derivatives} · flow {data.sources.flows}
-    </span>
   );
 }
 

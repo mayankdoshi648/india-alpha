@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { HeatCell, RotationQuadrant, SectorTile } from "@/lib/types";
-import { Chg, EmaPills, Panel } from "@/components/dashboard/primitives";
+import { Chg, Panel } from "@/components/dashboard/primitives";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -125,8 +125,8 @@ export function SectorMatrix({
   }, [points]);
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-1.5">
         {sectors.map((s) => {
           const up = s.changePct >= 0;
           return (
@@ -135,36 +135,25 @@ export function SectorMatrix({
               type="button"
               onClick={() => setSector(s.name)}
               className={cn(
-                "rounded-xl border p-4 text-left transition",
+                "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-left text-[11px] transition",
                 sector === s.name
-                  ? "border-cyan-400/50 bg-card"
-                  : "border-white/8 bg-card/70 hover:border-white/20",
-                up ? "ring-1 ring-emerald-500/15" : "ring-1 ring-rose-500/15",
+                  ? "border-cyan-400/50 bg-cyan-400/10"
+                  : "border-white/8 bg-card/60 hover:border-white/20",
               )}
             >
-              <div className="flex items-start justify-between gap-2">
-                <p className="inline-flex items-center gap-2 text-sm font-medium">
-                  <span className="size-2.5 rounded-full" style={{ background: QUAD_COLOR[s.quadrant] }} />
-                  {s.name}
-                </p>
-                <Chg value={s.changePct} />
-              </div>
-              <p className="mt-1 font-mono text-lg tabular-nums">{inr(s.cmp, 0)}</p>
-              <div className="mt-2 flex items-center justify-between">
-                <EmaPills emas={s.emas} />
-                <span className="inline-flex items-center gap-1 text-[10px]" style={{ color: QUAD_COLOR[s.quadrant] }}>
-                  {QUAD[s.quadrant]}
-                </span>
-              </div>
-              <p className="mt-2 text-[11px] text-muted-foreground">
-                A/D {s.advances}/{s.declines} · CMF {s.cmf.toFixed(2)} · {s.turnoverShare}% turnover
-              </p>
+              <span className="size-1.5 rounded-full" style={{ background: QUAD_COLOR[s.quadrant] }} />
+              <span className="font-medium">{s.name}</span>
+              <Chg value={s.changePct} />
+              <span className={cn("hidden font-mono tabular-nums sm:inline", up ? "text-slate-400" : "")}>
+                {inr(s.cmp, 0)}
+              </span>
             </button>
           );
         })}
       </div>
 
-      <Panel>
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-5">
+        <Panel className="xl:col-span-3">
         <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-medium">Sector rotation · four coloured quadrants</p>
@@ -181,7 +170,7 @@ export function SectorMatrix({
             ))}
           </div>
         </div>
-        <div className="h-[28rem]">
+        <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart margin={{ top: 28, right: 120, left: 48, bottom: 28 }}>
               <ReferenceArea
@@ -265,36 +254,21 @@ export function SectorMatrix({
             </ScatterChart>
           </ResponsiveContainer>
         </div>
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-white/8 pt-3">
-          {points.map((p) => (
-            <button
-              key={p.name}
-              type="button"
-              onClick={() => setSector(p.name)}
-              className="inline-flex items-center gap-1.5 text-[12px] hover:text-white"
-            >
-              <span className="size-2.5 rounded-full" style={{ background: QUAD_COLOR[p.quadrant] }} />
-              <span className={cn(sector === p.name && "text-white underline decoration-white/30 underline-offset-2")}>
-                {p.name}
-              </span>
-            </button>
-          ))}
-        </div>
       </Panel>
 
-      <Panel>
-        <div className="mb-3 flex items-center justify-between">
+      <Panel className="xl:col-span-2">
+        <div className="mb-2 flex items-center justify-between gap-2">
           <p className="text-sm font-medium">
-            Sector constituents {sector ? `· ${sector}` : ""}
+            Constituents {sector ? `· ${sector}` : ""}
           </p>
-          <p className="text-[11px] text-muted-foreground">1D % heat · click a sector tile or a named dot</p>
+          <p className="text-[11px] text-muted-foreground">1D heat</p>
         </div>
-        <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-6">
+        <div className="grid grid-cols-3 gap-1 sm:grid-cols-4">
           {cells.map((c) => (
             <div
               key={c.symbol}
               className={cn(
-                "rounded-md px-2 py-2",
+                "rounded-md px-1.5 py-1.5",
                 c.changePct >= 1.5
                   ? "bg-emerald-500/80 text-emerald-50"
                   : c.changePct >= 0.4
@@ -318,6 +292,7 @@ export function SectorMatrix({
           ))}
         </div>
       </Panel>
+      </div>
     </div>
   );
 }

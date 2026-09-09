@@ -36,59 +36,88 @@ const QUAD_COLOR: Record<RotationQuadrant, string> = {
 
 const QUADS: RotationQuadrant[] = ["leading", "improving", "weakening", "lagging"];
 
-const HEADERS = [
-  "",
-  "Stock",
-  "N50",
-  "Cap",
-  "Sector",
-  "Sector RS",
-  "CMP",
-  "Day H",
-  "Day L",
-  "Range pos",
-  "1D",
-  "1W",
-  "1M",
-  "3M",
-  "Streak",
-  "Beta",
-  "RSI",
-  "RSI>MA",
-  "7D trend",
-  "Volume",
-  "Avg vol",
-  "Turnover",
-  "Vol 1D/9D",
-  "ATR %",
-  "RV 20d",
-  "CMF",
-  "Gap %",
-  "vs VWAP",
-  "EMAs",
-  "Daily stack",
-  "Weekly stack",
-  "Days >20",
-  "% vs 20",
-  "% vs 50",
-  "% vs 200",
-  "Pivot",
-  "10/20 cross",
-  "Delivery %",
-  "RS vs Nifty",
-  "OI build",
-  "52W pos",
-  "52W high",
-  "52W low",
-  "% below 52W H",
-  "% above 52W L",
-  "Stage 2",
-  "Days to earn",
-  "Prev earnings",
-  "Earn day",
-  "Next earnings",
-  "Setups",
+type ColId =
+  | "watch" | "stock" | "n50" | "cap" | "sector" | "quad" | "cmp"
+  | "dayH" | "dayL" | "range" | "d1" | "w1" | "m1" | "m3" | "streak" | "beta"
+  | "rsi" | "rsiMa" | "spark" | "vol" | "avgVol" | "turn" | "volx" | "atr" | "rv"
+  | "cmf" | "gap" | "vwap" | "emas" | "stack" | "weekly" | "days20"
+  | "vs20" | "vs50" | "vs200" | "pivot" | "cross" | "deliv" | "rs" | "oi"
+  | "pos52" | "high52" | "low52" | "belowH" | "aboveL" | "s2"
+  | "earnDays" | "prevEarn" | "earnDay" | "nextEarn" | "setups";
+
+type Preset = "core" | "tape" | "structure" | "flow" | "earnings" | "all";
+
+const PRESET_COLS: Record<Preset, Set<ColId> | "*"> = {
+  core: new Set(["watch", "stock", "n50", "sector", "quad", "cmp", "d1", "w1", "rsi", "volx", "stack", "vs20", "pos52", "s2", "setups"]),
+  tape: new Set(["watch", "stock", "n50", "sector", "quad", "cmp", "dayH", "dayL", "range", "d1", "w1", "m1", "m3", "streak", "beta", "rsi", "spark", "volx", "gap"]),
+  structure: new Set(["watch", "stock", "sector", "cmp", "emas", "stack", "weekly", "days20", "vs20", "vs50", "vs200", "pivot", "cross", "pos52", "high52", "low52", "s2"]),
+  flow: new Set(["watch", "stock", "sector", "cmp", "d1", "vol", "avgVol", "turn", "volx", "atr", "rv", "cmf", "vwap", "deliv", "oi", "rs"]),
+  earnings: new Set(["watch", "stock", "sector", "cmp", "d1", "rsi", "s2", "earnDays", "prevEarn", "earnDay", "nextEarn", "setups"]),
+  all: "*",
+};
+
+const COLS: { id: ColId; label: string }[] = [
+  { id: "watch", label: "" },
+  { id: "stock", label: "Stock" },
+  { id: "n50", label: "N50" },
+  { id: "cap", label: "Cap" },
+  { id: "sector", label: "Sector" },
+  { id: "quad", label: "Sector RS" },
+  { id: "cmp", label: "CMP" },
+  { id: "dayH", label: "Day H" },
+  { id: "dayL", label: "Day L" },
+  { id: "range", label: "Range pos" },
+  { id: "d1", label: "1D" },
+  { id: "w1", label: "1W" },
+  { id: "m1", label: "1M" },
+  { id: "m3", label: "3M" },
+  { id: "streak", label: "Streak" },
+  { id: "beta", label: "Beta" },
+  { id: "rsi", label: "RSI" },
+  { id: "rsiMa", label: "RSI>MA" },
+  { id: "spark", label: "7D trend" },
+  { id: "vol", label: "Volume" },
+  { id: "avgVol", label: "Avg vol" },
+  { id: "turn", label: "Turnover" },
+  { id: "volx", label: "Vol 1D/9D" },
+  { id: "atr", label: "ATR %" },
+  { id: "rv", label: "RV 20d" },
+  { id: "cmf", label: "CMF" },
+  { id: "gap", label: "Gap %" },
+  { id: "vwap", label: "vs VWAP" },
+  { id: "emas", label: "EMAs" },
+  { id: "stack", label: "Daily stack" },
+  { id: "weekly", label: "Weekly stack" },
+  { id: "days20", label: "Days >20" },
+  { id: "vs20", label: "% vs 20" },
+  { id: "vs50", label: "% vs 50" },
+  { id: "vs200", label: "% vs 200" },
+  { id: "pivot", label: "Pivot" },
+  { id: "cross", label: "10/20 cross" },
+  { id: "deliv", label: "Delivery %" },
+  { id: "rs", label: "RS vs Nifty" },
+  { id: "oi", label: "OI build" },
+  { id: "pos52", label: "52W pos" },
+  { id: "high52", label: "52W high" },
+  { id: "low52", label: "52W low" },
+  { id: "belowH", label: "% below 52W H" },
+  { id: "aboveL", label: "% above 52W L" },
+  { id: "s2", label: "Stage 2" },
+  { id: "earnDays", label: "Days to earn" },
+  { id: "prevEarn", label: "Prev earnings" },
+  { id: "earnDay", label: "Earn day" },
+  { id: "nextEarn", label: "Next earnings" },
+  { id: "setups", label: "Setups" },
 ];
+
+const WIDTH: Record<Preset, string> = {
+  core: "min-w-[1180px]",
+  tape: "min-w-[1680px]",
+  structure: "min-w-[1580px]",
+  flow: "min-w-[1480px]",
+  earnings: "min-w-[1180px]",
+  all: "min-w-[3200px]",
+};
 
 function RangeBar({ value, tone = "amber" }: { value: number; tone?: "amber" | "cyan" }) {
   return (
@@ -120,6 +149,12 @@ export function UniverseTable({
   const [cap, setCap] = useState<"all" | "large" | "mid" | "small">("all");
   const [sector, setSector] = useState("all");
   const [quad, setQuad] = useState<RotationQuadrant | "all">("all");
+  const [preset, setPreset] = useState<Preset>("core");
+  const shownCol = (id: ColId) => {
+    const cols = PRESET_COLS[preset];
+    return cols === "*" || cols.has(id);
+  };
+  const hide = (id: ColId) => (shownCol(id) ? "" : "hidden");
 
   const sectors = useMemo(
     () => [...new Set(rows.map((r) => r.sector))].sort(),
@@ -163,7 +198,7 @@ export function UniverseTable({
 
   return (
     <div className="space-y-3">
-      <div id="universe-quad-counts" className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
+      <div id="universe-quad-counts" className="grid grid-cols-4 gap-1.5 xl:grid-cols-8">
         {QUADS.map((q) => (
           <button
             key={q}
@@ -171,15 +206,15 @@ export function UniverseTable({
             aria-pressed={quad === q}
             onClick={() => setQuad(quad === q ? "all" : q)}
             className={cn(
-              "rounded-xl border px-3 py-2 text-left",
+              "rounded-lg border px-2.5 py-1.5 text-left",
               quad === q ? "border-white/30 bg-white/5" : "border-white/8 bg-card/60",
             )}
           >
-            <p className="inline-flex items-center gap-1.5 text-[11px]" style={{ color: QUAD_COLOR[q] }}>
-              <span className="size-2 rounded-full" style={{ background: QUAD_COLOR[q] }} />
+            <p className="inline-flex items-center gap-1.5 text-[10px]" style={{ color: QUAD_COLOR[q] }}>
+              <span className="size-1.5 rounded-full" style={{ background: QUAD_COLOR[q] }} />
               {QUAD[q]}
             </p>
-            <p className="font-mono text-lg tabular-nums">{stats.counts[q]}</p>
+            <p className="font-mono text-base tabular-nums">{stats.counts[q]}</p>
           </button>
         ))}
         <div className="rounded-xl border border-white/8 bg-card/60 px-3 py-2">
@@ -271,23 +306,41 @@ export function UniverseTable({
           {quad !== "all" ? ` · ${QUAD[quad]} only` : ""}
           {sector !== "all" ? ` · ${sector}` : ""}
         </span>
-        <button
-          type="button"
-          id="export-universe-csv"
-          onClick={() => downloadCsv("india-desk-universe.csv", exportUniverseCsv(shown))}
-          className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 hover:bg-white/5"
-        >
-          <Download className="size-3.5" />
-          Export CSV
-        </button>
+        <span className="flex flex-wrap items-center gap-1.5">
+          {(["core", "tape", "structure", "flow", "earnings", "all"] as const).map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setPreset(p)}
+              className={cn(
+                "rounded-full border px-2.5 py-1 text-[11px] capitalize",
+                preset === p ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-200" : "border-white/10 text-muted-foreground",
+              )}
+            >
+              {p}
+            </button>
+          ))}
+          <button
+            type="button"
+            id="export-universe-csv"
+            onClick={() => downloadCsv("india-desk-universe.csv", exportUniverseCsv(shown))}
+            className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 hover:bg-white/5"
+          >
+            <Download className="size-3.5" />
+            Export CSV
+          </button>
+        </span>
       </p>
-      <div className="overflow-auto rounded-xl border border-white/8">
-        <table className="min-w-[3200px] w-full border-collapse text-left text-xs">
+      <div className="overflow-auto rounded-lg border border-white/8">
+        <table className={cn("w-full border-collapse text-left text-xs", WIDTH[preset])}>
           <thead className="sticky top-0 z-10 bg-[#0b1424] text-[10px] tracking-wide text-muted-foreground uppercase">
             <tr>
-              {HEADERS.map((h) => (
-                <th key={h || "watch"} className="border-b border-white/8 px-2 py-2 font-medium whitespace-nowrap">
-                  {h}
+              {COLS.map((h) => (
+                <th
+                  key={h.id}
+                  className={cn("border-b border-white/8 px-2 py-2 font-medium whitespace-nowrap", hide(h.id))}
+                >
+                  {h.label}
                 </th>
               ))}
             </tr>
@@ -295,7 +348,7 @@ export function UniverseTable({
           <tbody>
             {shown.length === 0 ? (
               <tr>
-                <td colSpan={HEADERS.length} className="px-4 py-10 text-center text-muted-foreground">
+                <td colSpan={COLS.length} className="px-4 py-10 text-center text-muted-foreground">
                   No names match these filters. Clear sector, cap or setup chips to widen the tape.
                 </td>
               </tr>
@@ -307,7 +360,7 @@ export function UniverseTable({
                   className="cursor-pointer border-b border-white/5 hover:bg-white/4"
                   onClick={() => onOpen(r.symbol)}
                 >
-                  <td className="sticky left-0 bg-[#0e1728] px-2 py-2">
+                  <td className={cn("sticky left-0 bg-[#0e1728] px-2 py-1.5", hide("watch"))}>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -320,78 +373,78 @@ export function UniverseTable({
                       <Bookmark className={cn("size-4", watch.has(r.symbol) && "fill-amber-300")} />
                     </button>
                   </td>
-                  <td className="sticky left-9 bg-[#0e1728] px-2 py-2">
+                  <td className={cn("sticky left-9 bg-[#0e1728] px-2 py-1.5", hide("stock"))}>
                     <button type="button" onClick={() => onOpen(r.symbol)} className="text-left hover:text-cyan-300">
                       <p className="font-medium underline-offset-2 hover:underline">{r.symbol}</p>
-                      <p className="max-w-40 truncate text-[10px] text-muted-foreground">Open note · {r.name}</p>
+                      <p className="max-w-40 truncate text-[10px] text-muted-foreground">{r.name}</p>
                     </button>
                   </td>
-                  <td className="px-2 py-2">{r.nifty50 ? "Y" : ""}</td>
-                  <td className="px-2 py-2 capitalize">{r.cap}</td>
-                  <td className="px-2 py-2 whitespace-nowrap">{r.sector}</td>
-                  <td className="px-2 py-2 whitespace-nowrap">
+                  <td className={cn("px-2 py-1.5", hide("n50"))}>{r.nifty50 ? "Y" : ""}</td>
+                  <td className={cn("px-2 py-1.5 capitalize", hide("cap"))}>{r.cap}</td>
+                  <td className={cn("px-2 py-1.5 whitespace-nowrap", hide("sector"))}>{r.sector}</td>
+                  <td className={cn("px-2 py-1.5 whitespace-nowrap", hide("quad"))}>
                     <span className="inline-flex items-center gap-1 capitalize" style={{ color: QUAD_COLOR[r.sectorQuad] }}>
                       <span className="size-1.5 rounded-full" style={{ background: QUAD_COLOR[r.sectorQuad] }} />
                       {r.sectorQuad}
                     </span>
                   </td>
-                  <td className="px-2 py-2 font-mono tabular-nums">{inr(r.cmp)}</td>
-                  <td className="px-2 py-2 font-mono tabular-nums">{inr(r.dayHigh)}</td>
-                  <td className="px-2 py-2 font-mono tabular-nums">{inr(r.dayLow)}</td>
-                  <td className="px-2 py-2"><RangeBar value={r.rangePos} /></td>
-                  <td className="px-2 py-2"><Chg value={r.change1d} /></td>
-                  <td className="px-2 py-2"><Chg value={r.change1w} /></td>
-                  <td className="px-2 py-2"><Chg value={r.change1m} /></td>
-                  <td className="px-2 py-2"><Chg value={r.change3m} /></td>
-                  <td className={cn("px-2 py-2 font-mono tabular-nums", r.streak > 0 ? "text-emerald-300" : r.streak < 0 ? "text-rose-300" : "")}>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("cmp"))}>{inr(r.cmp)}</td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("dayH"))}>{inr(r.dayHigh)}</td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("dayL"))}>{inr(r.dayLow)}</td>
+                  <td className={cn("px-2 py-1.5", hide("range"))}><RangeBar value={r.rangePos} /></td>
+                  <td className={cn("px-2 py-1.5", hide("d1"))}><Chg value={r.change1d} /></td>
+                  <td className={cn("px-2 py-1.5", hide("w1"))}><Chg value={r.change1w} /></td>
+                  <td className={cn("px-2 py-1.5", hide("m1"))}><Chg value={r.change1m} /></td>
+                  <td className={cn("px-2 py-1.5", hide("m3"))}><Chg value={r.change3m} /></td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("streak"), r.streak > 0 ? "text-emerald-300" : r.streak < 0 ? "text-rose-300" : "")}>
                     {r.streak > 0 ? `+${r.streak}` : r.streak}
                   </td>
-                  <td className="px-2 py-2 font-mono tabular-nums">{r.beta.toFixed(2)}</td>
-                  <td className={cn("px-2 py-2 font-mono tabular-nums", r.rsi < 30 ? "text-lime-300" : r.rsi > 70 ? "text-rose-300" : "")}>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("beta"))}>{r.beta.toFixed(2)}</td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("rsi"), r.rsi < 30 ? "text-lime-300" : r.rsi > 70 ? "text-rose-300" : "")}>
                     {r.rsi.toFixed(1)}
                   </td>
-                  <td className="px-2 py-2">{r.rsiAboveMa ? "Yes" : "No"}</td>
-                  <td className="px-2 py-2"><Sparkline values={r.spark} /></td>
-                  <td className="px-2 py-2 font-mono tabular-nums">{compact(r.volume)}</td>
-                  <td className="px-2 py-2 font-mono tabular-nums">{compact(r.avgVolume)}</td>
-                  <td className="px-2 py-2 font-mono tabular-nums">{compact(r.turnover)}</td>
-                  <td className={cn("px-2 py-2 font-mono tabular-nums", r.volSpike >= 1.5 && "text-cyan-300")}>
+                  <td className={cn("px-2 py-1.5", hide("rsiMa"))}>{r.rsiAboveMa ? "Yes" : "No"}</td>
+                  <td className={cn("px-2 py-1.5", hide("spark"))}><Sparkline values={r.spark} /></td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("vol"))}>{compact(r.volume)}</td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("avgVol"))}>{compact(r.avgVolume)}</td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("turn"))}>{compact(r.turnover)}</td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("volx"), r.volSpike >= 1.5 && "text-cyan-300")}>
                     {r.volSpike.toFixed(2)}x
                   </td>
-                  <td className="px-2 py-2 font-mono tabular-nums">{r.atrPct.toFixed(2)}</td>
-                  <td className="px-2 py-2 font-mono tabular-nums">{r.rv20.toFixed(1)}</td>
-                  <td className={cn("px-2 py-2 font-mono tabular-nums", r.cmf > 0 ? "text-emerald-300" : "text-rose-300")}>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("atr"))}>{r.atrPct.toFixed(2)}</td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("rv"))}>{r.rv20.toFixed(1)}</td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("cmf"), r.cmf > 0 ? "text-emerald-300" : "text-rose-300")}>
                     {r.cmf.toFixed(2)}
                   </td>
-                  <td className="px-2 py-2"><Chg value={r.gapPct} /></td>
-                  <td className="px-2 py-2"><Chg value={r.vwapDist} /></td>
-                  <td className="px-2 py-2"><EmaPills emas={r.emas} /></td>
-                  <td className="px-2 py-2 capitalize">{r.emaStack}</td>
-                  <td className="px-2 py-2 capitalize">{r.weeklyStack}</td>
-                  <td className="px-2 py-2 font-mono tabular-nums">{r.daysAbove20}</td>
-                  <td className="px-2 py-2"><Chg value={r.distFrom20Ema} /></td>
-                  <td className="px-2 py-2"><Chg value={r.distFrom50} /></td>
-                  <td className="px-2 py-2"><Chg value={r.distFrom200} /></td>
-                  <td className="px-2 py-2">{r.abovePivot ? "Above" : "Below"}</td>
-                  <td className="px-2 py-2">{r.bullishCross ? "Bullish" : "—"}</td>
-                  <td className="px-2 py-2 font-mono tabular-nums">{r.deliveryPct.toFixed(1)}%</td>
-                  <td className="px-2 py-2"><Chg value={r.rsNifty} /></td>
-                  <td className="px-2 py-2 capitalize whitespace-nowrap">{r.oiBuild.replace("-", " ")}</td>
-                  <td className="px-2 py-2">
+                  <td className={cn("px-2 py-1.5", hide("gap"))}><Chg value={r.gapPct} /></td>
+                  <td className={cn("px-2 py-1.5", hide("vwap"))}><Chg value={r.vwapDist} /></td>
+                  <td className={cn("px-2 py-1.5", hide("emas"))}><EmaPills emas={r.emas} /></td>
+                  <td className={cn("px-2 py-1.5 capitalize", hide("stack"))}>{r.emaStack}</td>
+                  <td className={cn("px-2 py-1.5 capitalize", hide("weekly"))}>{r.weeklyStack}</td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("days20"))}>{r.daysAbove20}</td>
+                  <td className={cn("px-2 py-1.5", hide("vs20"))}><Chg value={r.distFrom20Ema} /></td>
+                  <td className={cn("px-2 py-1.5", hide("vs50"))}><Chg value={r.distFrom50} /></td>
+                  <td className={cn("px-2 py-1.5", hide("vs200"))}><Chg value={r.distFrom200} /></td>
+                  <td className={cn("px-2 py-1.5", hide("pivot"))}>{r.abovePivot ? "Above" : "Below"}</td>
+                  <td className={cn("px-2 py-1.5", hide("cross"))}>{r.bullishCross ? "Bullish" : "—"}</td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("deliv"))}>{r.deliveryPct.toFixed(1)}%</td>
+                  <td className={cn("px-2 py-1.5", hide("rs"))}><Chg value={r.rsNifty} /></td>
+                  <td className={cn("px-2 py-1.5 capitalize whitespace-nowrap", hide("oi"))}>{r.oiBuild.replace("-", " ")}</td>
+                  <td className={cn("px-2 py-1.5", hide("pos52"))}>
                     <RangeBar value={r.pos52w} tone="cyan" />
                   </td>
-                  <td className="px-2 py-2 font-mono tabular-nums">{inr(r.high52)}</td>
-                  <td className="px-2 py-2 font-mono tabular-nums">{inr(r.low52)}</td>
-                  <td className="px-2 py-2 font-mono tabular-nums">{r.below52wHigh.toFixed(1)}%</td>
-                  <td className="px-2 py-2 font-mono tabular-nums">{r.above52wLow.toFixed(1)}%</td>
-                  <td className="px-2 py-2 font-mono tabular-nums">{r.stage2Score}/7</td>
-                  <td className="px-2 py-2 font-mono tabular-nums">{r.daysToEarnings ?? "—"}</td>
-                  <td className="px-2 py-2 whitespace-nowrap">{fmtDate(r.prevEarningDate)}</td>
-                  <td className="px-2 py-2">
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("high52"))}>{inr(r.high52)}</td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("low52"))}>{inr(r.low52)}</td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("belowH"))}>{r.below52wHigh.toFixed(1)}%</td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("aboveL"))}>{r.above52wLow.toFixed(1)}%</td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("s2"))}>{r.stage2Score}/7</td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("earnDays"))}>{r.daysToEarnings ?? "—"}</td>
+                  <td className={cn("px-2 py-1.5 whitespace-nowrap", hide("prevEarn"))}>{fmtDate(r.prevEarningDate)}</td>
+                  <td className={cn("px-2 py-1.5", hide("earnDay"))}>
                     {r.earningsImpactPct === null ? "—" : <Chg value={r.earningsImpactPct} />}
                   </td>
-                  <td className="px-2 py-2 whitespace-nowrap">{fmtDate(r.nextEarningDate)}</td>
-                  <td className="px-2 py-2">
+                  <td className={cn("px-2 py-1.5 whitespace-nowrap", hide("nextEarn"))}>{fmtDate(r.nextEarningDate)}</td>
+                  <td className={cn("px-2 py-1.5", hide("setups"))}>
                     <div className="flex max-w-56 flex-wrap gap-1">
                       {r.patterns.slice(0, 3).map((p) => (
                         <span key={p} className={cn("rounded border px-1.5 py-0.5 text-[10px]", PATTERN_TONE[p])}>

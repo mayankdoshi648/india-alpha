@@ -26,14 +26,14 @@ export function SetupRadar({
   onPick: (symbol: string) => void;
 }) {
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+    <div className="space-y-2.5">
+      <div className="grid grid-cols-5 gap-1.5 md:grid-cols-10">
         {ORDER.map((kind) => {
           const n = hits.filter((h) => h.kind === kind).length;
           return (
-            <Panel key={kind} className="py-3">
-              <p className="text-[11px] text-muted-foreground">{PATTERN_LABEL[kind]}</p>
-              <p className="font-mono text-xl tabular-nums">{n}</p>
+            <Panel key={kind} className="py-2">
+              <p className="truncate text-[10px] text-muted-foreground">{PATTERN_LABEL[kind]}</p>
+              <p className="font-mono text-lg tabular-nums">{n}</p>
             </Panel>
           );
         })}

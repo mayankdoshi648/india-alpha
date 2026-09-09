@@ -20,15 +20,17 @@ export function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="scroll-mt-28 space-y-4">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-[11px] font-medium tracking-[0.18em] text-cyan-400/80 uppercase">
-            {kicker}
-          </p>
-          <h2 className="font-heading text-lg text-foreground sm:text-xl">{title}</h2>
+    <section id={id} className="scroll-mt-28 space-y-2.5">
+      <div className="flex items-baseline justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="flex items-center gap-2 text-[13px] font-medium text-foreground">
+            <span className="text-[10px] font-medium tracking-[0.16em] text-cyan-400/70 uppercase">
+              {kicker}
+            </span>
+            {title}
+          </h2>
           {subtitle ? (
-            <p className="max-w-3xl text-sm text-muted-foreground">{subtitle}</p>
+            <p className="hidden max-w-3xl text-[11px] text-muted-foreground lg:block">{subtitle}</p>
           ) : null}
         </div>
       </div>
@@ -114,8 +116,8 @@ export function Gauge({
   const dash = (pct / 100) * c;
   const tone = pct >= 55 ? "#34d399" : pct >= 40 ? "#fbbf24" : "#fb7185";
   return (
-    <div className="flex flex-col items-center gap-2 rounded-xl border border-white/8 bg-card/80 p-4">
-      <svg width="120" height="120" viewBox="0 0 120 120">
+    <div className="flex flex-col items-center gap-1 rounded-lg border border-white/8 bg-card/80 p-3">
+      <svg width="96" height="96" viewBox="0 0 120 120">
         <circle cx="60" cy="60" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="10" />
         <circle
           cx="60"
@@ -210,7 +212,7 @@ export function Panel({
   return (
     <div
       className={cn(
-        "rounded-xl border border-white/8 bg-card/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+        "rounded-lg border border-white/8 bg-card/70 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
         glow === "up" && "ring-1 ring-emerald-500/25",
         glow === "down" && "ring-1 ring-rose-500/25",
         className,

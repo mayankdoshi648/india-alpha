@@ -1,6 +1,6 @@
 # India Market Desk
 
-A Nifty 50 / Nifty 500 market-view dashboard: index tape with EMA posture, FII/DII and option positioning, moving-average breadth, sector rotation, a full universe inspector, and a setup scanner (Stage 2, VCP, volume surge, divergences, pivots, oversold pullbacks).
+A Nifty 50 / Nifty 500 terminal: one pulse bar, tabbed workspaces (Tape, Setups, F&O, Sectors, Universe, Breadth, Feed), sector rotation, and a universe inspector.
 
 Quotes, historical candles and the Nifty option chain come from **DhanHQ** when you add credentials. **NSE India** is used for FII/DII cash flow and index last prices when the public feed is reachable. If neither is available, the desk still runs on a deterministic tape anchored to the 8 Sep 2026 close (Nifty 23,635) so every panel stays usable.
 
@@ -40,19 +40,15 @@ NSE (no key): `allIndices`, `fiidiiTradeData`, `option-chain-indices`.
 
 ## What is on the desk
 
-1. **Index tiles** — Nifty, Bank Nifty, Sensex, large / mid / small cap CMP, gain%, 10/20/50/200 EMA above/below.
-2. **Session clock** — NSE pre-open / open / closed in IST, quote age, source badges, Dhan token countdown, 60s auto-refresh while the cash market is open.
-3. **Desk alerts** — FII streaks, VIX regime, PCR extremes, oversold-near-20 EMA, volume surges, breakouts.
-4. **Session macro** — overnight gap, India VIX vs 20-day realized vol, vol premium, USD/INR, 10Y G-Sec, crude.
-5. **Institutional F&O radar** — FII/DII net flow, India VIX regime, Nifty PCR, max pain.
-6. **Nifty OI ladder** — call/put OI around ATM, call wall, put wall, IV skew.
-7. **EMA breadth gauges** — % of the universe above 10/20 (short), 50 (medium), 200 (long) on D/W/M.
-8. **Sector health** — sector tiles, constituent heatmap, and a four-colour rotation map. Each sector is a named coloured dot: emerald leading, cyan improving, amber weakening, rose lagging.
-9. **Universe inspector** — summary counts by rotation colour, then a full tape: Nifty 50 flag, cap, sector, day high/low and range position, 1D/1W/1M/3M, streak, beta vs Nifty, RSI vs MA, volume vs 20d average, turnover, ATR, 20d realized vol, CMF, gap, distance from VWAP, EMA stack (daily/weekly), days above 20 EMA, % vs 20/50/200, pivot, 10/20 cross, delivery %, RS vs Nifty, OI build, 52-week high/low/position, Stage 2, earnings, setups. Filter by sector or rotation colour and export CSV.
-10. **Stock drawer** — 80-session chart, delivery, RS, OI build, beta, VWAP, notes, watchlists.
-11. **Setup scanner** — Stage 2, breakouts, volume surge, VCP, divergences, pivot reclaim, oversold pullback.
-12. **Market breadth** — seven indicators with a 60-session drill-down.
-13. **Settings** — EMA/RSI/volume/breakout templates plus on-page Dhan keys.
+1. **Tape** — pulse bar (Nifty, Bank Nifty, VIX, PCR, A/D, FII), alerts, session macro, index tiles, Nifty 50 mosaic, gainers / losers / volume / RSI lists. Keys `1`.
+2. **Setups** — Stage 2, breakouts, volume surge, VCP, divergences, pivot reclaim, oversold pullback. Key `2`.
+3. **F&O** — FII/DII flow, India VIX, PCR, max pain, Nifty OI ladder. Key `3`.
+4. **Sectors** — compact named chips, four-colour rotation map with labelled dots, constituent heatmap. Key `4`.
+5. **Universe** — concentrated Core columns by default (CMP, 1D/1W, RSI, volume spike, stack, 52W, Stage 2, setups). Switch Tape / Structure / Flow / Earnings / All for more fields. Filter by rotation colour. Key `5`.
+6. **Breadth** — EMA gauges D/W/M plus A/D and trend filters. Key `6`.
+7. **Feed** — DhanHQ JWT. Key `7`.
+
+Also: stock drawer with 80-session chart, watchlists, Configure templates, 60s auto-refresh while NSE is open.
 
 ## Scripts
 
