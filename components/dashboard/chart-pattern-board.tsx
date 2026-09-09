@@ -12,10 +12,12 @@ export function ChartPatternBoard({
   hits,
   universe,
   onOpen,
+  variant = "strip",
 }: {
   hits: ChartPatternHit[];
   universe: "nifty50" | "nifty500";
   onOpen: (symbol: string) => void;
+  variant?: "strip" | "page";
 }) {
   const [tf, setTf] = useState<TfFilter>("ALL");
   const [bias, setBias] = useState<BiasFilter>("ALL");
@@ -24,10 +26,12 @@ export function ChartPatternBoard({
     return hits.filter((h) => (tf === "ALL" || h.timeframe === tf) && (bias === "ALL" || h.bias === bias));
   }, [hits, tf, bias]);
 
-  const shown = filtered.slice(0, universe === "nifty500" ? 16 : 12);
+  const cap = variant === "page" ? (universe === "nifty500" ? 80 : 40) : universe === "nifty500" ? 16 : 12;
+  const shown = filtered.slice(0, cap);
+  const page = variant === "page";
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-1.5">
         {(["ALL", "D", "W", "M"] as TfFilter[]).map((id) => (
           <button
@@ -36,7 +40,7 @@ export function ChartPatternBoard({
             id={`chart-pattern-tf-${id}`}
             onClick={() => setTf(id)}
             className={cn(
-              "h-6 rounded-md border px-2 text-[11px]",
+              "h-7 rounded-md border px-2.5 text-[12px]",
               tf === id ? "border-cyan-400/50 bg-cyan-400/15 text-cyan-100" : "border-white/10 text-slate-400 hover:bg-white/5",
             )}
           >
@@ -51,23 +55,84 @@ export function ChartPatternBoard({
             id={`chart-pattern-bias-${id}`}
             onClick={() => setBias(id)}
             className={cn(
-              "h-6 rounded-md border px-2 text-[11px]",
+              "h-7 rounded-md border px-2.5 text-[12px]",
               bias === id ? "border-cyan-400/50 bg-cyan-400/15 text-cyan-100" : "border-white/10 text-slate-400 hover:bg-white/5",
             )}
           >
             {id === "ALL" ? "Long + short" : id === "bullish" ? "Long" : "Short"}
           </button>
         ))}
-        <span className="ml-auto text-[11px] text-slate-500">
+        <span className="ml-auto text-[12px] text-slate-400">
           {shown.length} of {filtered.length} on {universe === "nifty500" ? "Nifty 500" : "Nifty 50"}
         </span>
       </div>
-      <p className="text-[11px] leading-snug text-slate-500">
+      <p className={cn("leading-snug text-slate-400", page ? "text-[13px]" : "text-[11px]")}>
         Triangles, flags, wedges, H&amp;S, double/triple. Volume on the break plus RSI / divergence. Click a name for the
         chart. This is a scanner, not an order.
       </p>
       {!shown.length ? (
-        <p className="text-sm text-slate-500">No triangle / flag / wedge / H&amp;S setups on this tape and filter.</p>
+        <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-6 text-center text-sm text-slate-400">
+          No triangle / flag / wedge / H&amp;S setups on this tape and filter.
+        </p>
+      ) : page ? (
+        <div className="overflow-auto rounded-lg border border-white/10">
+          <table className="w-full min-w-[720px] text-left text-[13px]">
+            <thead className="sticky top-0 bg-[#152033] text-[11px] tracking-wide text-slate-400 uppercase">
+              <tr>
+                <th className="px-3 py-2 font-medium">Stock</th>
+                <th className="px-3 py-2 font-medium">Pattern</th>
+                <th className="px-3 py-2 font-medium">TF</th>
+                <th className="px-3 py-2 font-medium">Bias</th>
+                <th className="px-3 py-2 font-medium text-right">CMP</th>
+                <th className="px-3 py-2 font-medium text-right">Entry</th>
+                <th className="px-3 py-2 font-medium text-right">Stop</th>
+                <th className="px-3 py-2 font-medium text-right">Target</th>
+                <th className="px-3 py-2 font-medium text-right">R</th>
+                <th className="px-3 py-2 font-medium">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((h) => (
+                <tr
+                  key={`${h.symbol}-${h.kind}-${h.timeframe}`}
+                  id={`chart-pattern-${h.symbol}-${h.kind}-${h.timeframe}`}
+                  className="cursor-pointer border-t border-white/8 hover:bg-cyan-400/5"
+                  onClick={() => onOpen(h.symbol)}
+                >
+                  <td className="px-3 py-2">
+                    <span className="font-mono font-semibold text-white">{h.symbol}</span>
+                    <span className="mt-0.5 block text-[11px] text-slate-500">{h.name}</span>
+                  </td>
+                  <td className="px-3 py-2">
+                    <span className={cn("rounded-full border px-1.5 py-px text-[11px]", CHART_PATTERN_TONE[h.kind])}>
+                      {CHART_PATTERN_LABEL[h.kind]}
+                    </span>
+                    <span className="mt-0.5 block text-[11px] text-slate-500">
+                      {h.role} · {h.status}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 font-mono text-slate-300">{h.timeframe}</td>
+                  <td className={cn("px-3 py-2 capitalize", h.bias === "bullish" ? "text-emerald-400" : "text-rose-400")}>
+                    {h.bias === "bullish" ? "Long" : "Short"}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">
+                    <span className="text-white">{inr(h.cmp, 1)}</span>
+                    <span className={cn("mt-0.5 block text-[11px]", h.change1d >= 0 ? "text-emerald-400" : "text-rose-400")}>
+                      {signed(h.change1d)}%
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono text-slate-300 tabular-nums">{inr(h.entry, 1)}</td>
+                  <td className="px-3 py-2 text-right font-mono text-slate-300 tabular-nums">{inr(h.stop, 1)}</td>
+                  <td className="px-3 py-2 text-right font-mono text-slate-300 tabular-nums">{inr(h.target, 1)}</td>
+                  <td className="px-3 py-2 text-right font-mono text-slate-300 tabular-nums">{h.rr.toFixed(1)}</td>
+                  <td className="max-w-[22rem] px-3 py-2 text-[12px] leading-snug text-slate-400">
+                    <span className="line-clamp-2">{h.rationale}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
           {shown.map((h) => (
@@ -82,12 +147,7 @@ export function ChartPatternBoard({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="font-mono text-[13px] font-semibold text-white">{h.symbol}</span>
-                    <span
-                      className={cn(
-                        "rounded-full border px-1.5 py-px text-[10px]",
-                        CHART_PATTERN_TONE[h.kind],
-                      )}
-                    >
+                    <span className={cn("rounded-full border px-1.5 py-px text-[10px]", CHART_PATTERN_TONE[h.kind])}>
                       {CHART_PATTERN_LABEL[h.kind]}
                     </span>
                     <span className="text-[10px] uppercase tracking-wide text-slate-500">
