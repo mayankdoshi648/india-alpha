@@ -59,3 +59,7 @@ export const STRATEGY_TEMPLATES: {
 export function mergeSettings(partial?: Partial<StrategySettings>): StrategySettings {
   return { ...DEFAULT_SETTINGS, ...partial };
 }
+
+export function isDefaultSettings(partial?: Partial<StrategySettings>): boolean {
+  return JSON.stringify(mergeSettings(partial)) === JSON.stringify(DEFAULT_SETTINGS);
+}

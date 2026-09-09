@@ -70,10 +70,22 @@ import type {
   StockRow,
   StrategySettings,
   UniverseId,
+  UniverseStock,
 } from "@/lib/types";
 
-const CACHE_VER = 13;
+const CACHE_VER = 14;
 const cache = new Map<string, { at: number; value: DashboardSnapshot }>();
+
+export type SnapshotOpts = {
+  /** Skip NSE/Dhan. Used when baking the public tape and on Vercel without keys. */
+  live?: boolean;
+};
+
+function liveFeedsEnabled(opts?: SnapshotOpts): boolean {
+  if (opts?.live === false) return false;
+  if (dhanConfigured()) return true;
+  return !process.env.VERCEL;
+}
 
 function overlayLast(bars: OhlcBar[], close: number, changePct?: number): OhlcBar[] {
   if (!bars.length) return bars;
@@ -95,6 +107,145 @@ function overlayLast(bars: OhlcBar[], close: number, changePct?: number): OhlcBa
     b.close = Number((b.close * scale).toFixed(2));
   }
   return copy;
+}
+
+function scoreMember(input: {
+  s: UniverseStock;
+  bars: OhlcBar[];
+  niftyCloses: number[];
+  niftyClose: number;
+  settings: StrategySettings;
+  asOf: string;
+  sectorQuad: SectorTile["quadrant"];
+}): { row: StockRow; hits: PatternHit[] } {
+  const { s, bars, niftyCloses, niftyClose, settings, asOf, sectorQuad } = input;
+  const closes = bars.map((b) => b.close);
+  const lastBar = last(bars);
+  const prev = bars[bars.length - 2];
+  const rsiSeries = rsi(closes, settings.rsiPeriod);
+  const rsiNow = last(rsiSeries);
+  const rsiMa = last(sma(rsiSeries, settings.rsiMaPeriod));
+  const emas = emaStatuses(closes, settings);
+  const ema20 = emas.find((e) => e.period === settings.emaShort)?.value ?? lastBar.close;
+  const ema50 = emas.find((e) => e.period === settings.emaMid)?.value ?? lastBar.close;
+  const ema200 = emas.find((e) => e.period === settings.emaLong)?.value ?? lastBar.close;
+  const volAvg = last(sma(bars.map((b) => b.volume), settings.volumeAvgDays)) || 1;
+  const volSpike = lastBar.volume / volAvg;
+  const high52 = Math.max(...closes.slice(-252));
+  const low52 = Math.min(...closes.slice(-252));
+  const earn = earningsFor(s.symbol, asOf);
+  const stage = stage2Checklist(bars, settings);
+  const distFrom20 = pct(ema20, lastBar.close);
+  const detected = detectPatterns(bars, settings, {
+    stage2Score: stage.score,
+    rsiNow,
+    rsiMa,
+    above50: lastBar.close >= ema50,
+    above200: lastBar.close >= ema200,
+    volSpike,
+    distFrom20,
+  });
+  const weekly = emaStatuses(weeklyCloses(bars), settings);
+  const fast = ema(closes, settings.emaFast);
+  const slow = ema(closes, settings.emaShort);
+  const pivot = classicPivot(prev);
+  const row: StockRow = {
+    symbol: s.symbol,
+    name: s.name,
+    cap: s.cap,
+    sector: s.sector,
+    nifty50: s.nifty50,
+    cmp: round(lastBar.close, 2),
+    change1d: round(pct(prev.close, lastBar.close), 2),
+    change1w: round(pct(valueAt(closes, 5), lastBar.close), 2),
+    change1m: round(pct(valueAt(closes, 21), lastBar.close), 2),
+    rsi: round(rsiNow, 1),
+    spark: closes.slice(-7),
+    volume: lastBar.volume,
+    volSpike: round(volSpike, 2),
+    gapPct: round(pct(prev.close, lastBar.open), 2),
+    emas,
+    emaStack: stackAlignment(emas),
+    distFrom20Ema: round(distFrom20, 2),
+    below52wHigh: round(pct(lastBar.close, high52), 2),
+    above52wLow: round(pct(low52, lastBar.close), 2),
+    prevEarningDate: earn.prev,
+    earningsImpactPct: earn.impact,
+    nextEarningDate: earn.next,
+    patterns: detected.map((d) => d.kind),
+    stage2Score: stage.score,
+    abovePivot: lastBar.close >= pivot.p,
+    rsiAboveMa: rsiNow >= rsiMa,
+    bullishCross: crossedUp(fast, slow, 5),
+    weeklyStack: stackAlignment(weekly),
+    deliveryPct: demoDelivery(s.symbol),
+    oiBuild: demoOiBuild(round(pct(prev.close, lastBar.close), 2), round(volSpike, 2)),
+    rsNifty: round(pct(valueAt(closes, 21), lastBar.close) - pct(valueAt(niftyCloses, 21), niftyClose), 2),
+    chart: bars.slice(-80).map((b) => ({
+      date: b.date,
+      close: b.close,
+      high: b.high,
+      low: b.low,
+      volume: b.volume,
+    })),
+    atrPct: round(
+      ((bars.slice(-14).reduce((sum, b) => sum + (b.high - b.low), 0) / Math.min(14, bars.length)) /
+        lastBar.close) *
+        100,
+      2,
+    ),
+    turnover: round(lastBar.close * lastBar.volume, 0),
+    distFrom50: round(pct(ema50, lastBar.close), 2),
+    distFrom200: round(pct(ema200, lastBar.close), 2),
+    pos52w: high52 === low52 ? 50 : round(((lastBar.close - low52) / (high52 - low52)) * 100, 0),
+    daysToEarnings: Math.round((Date.parse(earn.next) - Date.parse(asOf)) / 86_400_000),
+    sectorQuad,
+    change3m: round(pct(valueAt(closes, 63), lastBar.close), 2),
+    dayHigh: round(lastBar.high, 2),
+    dayLow: round(lastBar.low, 2),
+    rangePos:
+      lastBar.high === lastBar.low
+        ? 50
+        : round(((lastBar.close - lastBar.low) / (lastBar.high - lastBar.low)) * 100, 0),
+    avgVolume: round(volAvg, 0),
+    beta: betaVs(closes, niftyCloses, 60),
+    streak: consecutiveStreak(closes),
+    cmf: round(chaikinMoneyFlow(bars, settings.cmfPeriod), 3),
+    high52: round(high52, 2),
+    low52: round(low52, 2),
+    vwapDist: round(pct(vwap(bars, 20), lastBar.close), 2),
+    daysAbove20: runDaysAbove(closes, settings.emaShort),
+    rv20: realizedVol(closes, 20),
+    fo:
+      s.nifty50 || s.cap === "large" || s.avgVolume >= 1_500_000
+        ? demoStockFo(s.symbol, lastBar.close, round(pct(prev.close, lastBar.close), 2), nextThursday(asOf))
+        : null,
+    vcp: detected.find((d) => d.kind === "vcp")?.swing ?? null,
+    breakout: detected.find((d) => d.kind === "breakout")?.swing ?? null,
+  };
+  if (row.fo) row.oiBuild = row.fo.oiBuild;
+  const hits: PatternHit[] = [];
+  for (const d of detected) {
+    if (
+      d.kind === "vcp" &&
+      d.swing?.status === "coiling" &&
+      (d.swing.tightnessPct > 58 || d.swing.volDryPct < 8)
+    ) {
+      continue;
+    }
+    hits.push({
+      symbol: s.symbol,
+      name: s.name,
+      sector: s.sector,
+      kind: d.kind,
+      detail: d.detail,
+      cmp: row.cmp,
+      change1d: row.change1d,
+      score: round(d.score, 0),
+      swing: d.swing,
+    });
+  }
+  return { row, hits };
 }
 
 function tileFromBars(id: string, name: string, symbol: string, bars: OhlcBar[], settings: StrategySettings): IndexTile {
@@ -252,9 +403,11 @@ async function tryLiveQuotes(ids: number[]): Promise<Record<string, number>> {
 export async function buildSnapshot(
   universe: UniverseId,
   partialSettings?: Partial<StrategySettings>,
+  opts?: SnapshotOpts,
 ): Promise<DashboardSnapshot> {
   const settings = mergeSettings(partialSettings);
-  const key = `${CACHE_VER}:${universe}:${JSON.stringify(settings)}:${dhanFingerprint()}`;
+  const live = liveFeedsEnabled(opts);
+  const key = `${CACHE_VER}:${universe}:${JSON.stringify(settings)}:${live ? dhanFingerprint() : "demo"}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < 45_000) return hit.value;
 
@@ -265,12 +418,19 @@ export async function buildSnapshot(
   const asOf = last(days);
   const niftyClose = last(niftyBars).close;
 
-  const [liveIdx, quotes, derivLive, flowLive] = await Promise.all([
-    tryLiveIndices(),
-    tryLiveQuotes(members.map((s) => s.securityId).filter(Boolean)),
-    tryLiveDerivatives(niftyClose),
-    tryLiveFlows(),
-  ]);
+  const [liveIdx, quotes, derivLive, flowLive] = live
+    ? await Promise.all([
+        tryLiveIndices(),
+        tryLiveQuotes(members.map((s) => s.securityId).filter(Boolean)),
+        tryLiveDerivatives(niftyClose),
+        tryLiveFlows(),
+      ])
+    : [
+        {} as Record<string, { last: number; percentChange?: number }>,
+        {} as Record<string, number>,
+        { source: "demo" as DataSource },
+        { flows: null as null, source: "demo" as DataSource },
+      ];
 
   for (const meta of INDEX_META) {
     const live = liveIdx[meta.nse] ?? liveIdx[meta.symbol];
@@ -287,7 +447,7 @@ export async function buildSnapshot(
     if (px) stockBars.set(s.symbol, overlayLast(stockBars.get(s.symbol)!, px));
   }
 
-  if (dhanConfigured()) {
+  if (live && dhanConfigured()) {
     try {
       const from = days[Math.max(0, days.length - 260)];
       const hist = await dhanHistorical({
@@ -450,133 +610,17 @@ export async function buildSnapshot(
   const patterns: PatternHit[] = [];
 
   for (const s of members) {
-    const bars = stockBars.get(s.symbol)!;
-    const closes = bars.map((b) => b.close);
-    const lastBar = last(bars);
-    const prev = bars[bars.length - 2];
-    const rsiSeries = rsi(closes, settings.rsiPeriod);
-    const rsiNow = last(rsiSeries);
-    const rsiMa = last(sma(rsiSeries, settings.rsiMaPeriod));
-    const emas = emaStatuses(closes, settings);
-    const ema20 = emas.find((e) => e.period === settings.emaShort)?.value ?? lastBar.close;
-    const ema50 = emas.find((e) => e.period === settings.emaMid)?.value ?? lastBar.close;
-    const ema200 = emas.find((e) => e.period === settings.emaLong)?.value ?? lastBar.close;
-    const volAvg = last(sma(bars.map((b) => b.volume), settings.volumeAvgDays)) || 1;
-    const volSpike = lastBar.volume / volAvg;
-    const high52 = Math.max(...closes.slice(-252));
-    const low52 = Math.min(...closes.slice(-252));
-    const earn = earningsFor(s.symbol, asOf);
-    const stage = stage2Checklist(bars, settings);
-    const distFrom20 = pct(ema20, lastBar.close);
-    const detected = detectPatterns(bars, settings, {
-      stage2Score: stage.score,
-      rsiNow,
-      rsiMa,
-      above50: lastBar.close >= ema50,
-      above200: lastBar.close >= ema200,
-      volSpike,
-      distFrom20,
-    });
-    const weekly = emaStatuses(weeklyCloses(bars), settings);
-    const fast = ema(closes, settings.emaFast);
-    const slow = ema(closes, settings.emaShort);
-    const pivot = classicPivot(prev);
-    const row: StockRow = {
-      symbol: s.symbol,
-      name: s.name,
-      cap: s.cap,
-      sector: s.sector,
-      nifty50: s.nifty50,
-      cmp: round(lastBar.close, 2),
-      change1d: round(pct(prev.close, lastBar.close), 2),
-      change1w: round(pct(valueAt(closes, 5), lastBar.close), 2),
-      change1m: round(pct(valueAt(closes, 21), lastBar.close), 2),
-      rsi: round(rsiNow, 1),
-      spark: closes.slice(-7),
-      volume: lastBar.volume,
-      volSpike: round(volSpike, 2),
-      gapPct: round(pct(prev.close, lastBar.open), 2),
-      emas,
-      emaStack: stackAlignment(emas),
-      distFrom20Ema: round(distFrom20, 2),
-      below52wHigh: round(pct(lastBar.close, high52), 2),
-      above52wLow: round(pct(low52, lastBar.close), 2),
-      prevEarningDate: earn.prev,
-      earningsImpactPct: earn.impact,
-      nextEarningDate: earn.next,
-      patterns: detected.map((d) => d.kind),
-      stage2Score: stage.score,
-      abovePivot: lastBar.close >= pivot.p,
-      rsiAboveMa: rsiNow >= rsiMa,
-      bullishCross: crossedUp(fast, slow, 5),
-      weeklyStack: stackAlignment(weekly),
-      deliveryPct: demoDelivery(s.symbol),
-      oiBuild: demoOiBuild(round(pct(prev.close, lastBar.close), 2), round(volSpike, 2)),
-      rsNifty: round(pct(valueAt(closes, 21), lastBar.close) - pct(valueAt(niftyCloses, 21), niftyClose), 2),
-      chart: bars.slice(-80).map((b) => ({
-        date: b.date,
-        close: b.close,
-        high: b.high,
-        low: b.low,
-        volume: b.volume,
-      })),
-      atrPct: round(
-        ((bars.slice(-14).reduce((sum, b) => sum + (b.high - b.low), 0) / Math.min(14, bars.length)) /
-          lastBar.close) *
-          100,
-        2,
-      ),
-      turnover: round(lastBar.close * lastBar.volume, 0),
-      distFrom50: round(pct(ema50, lastBar.close), 2),
-      distFrom200: round(pct(ema200, lastBar.close), 2),
-      pos52w: high52 === low52 ? 50 : round(((lastBar.close - low52) / (high52 - low52)) * 100, 0),
-      daysToEarnings: Math.round((Date.parse(earn.next) - Date.parse(asOf)) / 86_400_000),
+    const { row, hits } = scoreMember({
+      s,
+      bars: stockBars.get(s.symbol)!,
+      niftyCloses,
+      niftyClose,
+      settings,
+      asOf,
       sectorQuad: sectors.find((x) => x.name === s.sector)?.quadrant ?? "lagging",
-      change3m: round(pct(valueAt(closes, 63), lastBar.close), 2),
-      dayHigh: round(lastBar.high, 2),
-      dayLow: round(lastBar.low, 2),
-      rangePos:
-        lastBar.high === lastBar.low
-          ? 50
-          : round(((lastBar.close - lastBar.low) / (lastBar.high - lastBar.low)) * 100, 0),
-      avgVolume: round(volAvg, 0),
-      beta: betaVs(closes, niftyCloses, 60),
-      streak: consecutiveStreak(closes),
-      cmf: round(chaikinMoneyFlow(bars, settings.cmfPeriod), 3),
-      high52: round(high52, 2),
-      low52: round(low52, 2),
-      vwapDist: round(pct(vwap(bars, 20), lastBar.close), 2),
-      daysAbove20: runDaysAbove(closes, settings.emaShort),
-      rv20: realizedVol(closes, 20),
-      fo:
-        s.nifty50 || s.cap === "large" || s.avgVolume >= 1_500_000
-          ? demoStockFo(s.symbol, lastBar.close, round(pct(prev.close, lastBar.close), 2), nextThursday(asOf))
-          : null,
-      vcp: detected.find((d) => d.kind === "vcp")?.swing ?? null,
-      breakout: detected.find((d) => d.kind === "breakout")?.swing ?? null,
-    };
-    if (row.fo) row.oiBuild = row.fo.oiBuild;
+    });
     stocks.push(row);
-    for (const d of detected) {
-      if (
-        d.kind === "vcp" &&
-        d.swing?.status === "coiling" &&
-        (d.swing.tightnessPct > 58 || d.swing.volDryPct < 8)
-      ) {
-        continue;
-      }
-      patterns.push({
-        symbol: s.symbol,
-        name: s.name,
-        sector: s.sector,
-        kind: d.kind,
-        detail: d.detail,
-        cmp: row.cmp,
-        change1d: row.change1d,
-        score: round(d.score, 0),
-        swing: d.swing,
-      });
-    }
+    patterns.push(...hits);
   }
 
   patterns.sort((a, b) => b.score - a.score);
@@ -759,6 +803,55 @@ export async function buildSnapshot(
 
   cache.set(key, { at: Date.now(), value: snapshot });
   return snapshot;
+}
+
+export async function buildStockDetail(
+  symbol: string,
+  universe: UniverseId,
+  partialSettings?: Partial<StrategySettings>,
+) {
+  const settings = mergeSettings(partialSettings);
+  const upper = symbol.toUpperCase();
+  const s = stocksFor(universe).find((row) => row.symbol === upper) ?? UNIVERSE.find((row) => row.symbol === upper);
+  if (!s) return null;
+  const indexBars = demoIndexBars();
+  const niftyBars = indexBars.nifty;
+  const niftyCloses = niftyBars.map((b) => b.close);
+  const niftyClose = last(niftyBars).close;
+  const asOf = last(niftyBars).date;
+  let bars = generateStockBars(s, niftyBars);
+  if (dhanConfigured() && s.securityId) {
+    const quotes = await tryLiveQuotes([s.securityId]);
+    const px = quotes[String(s.securityId)];
+    if (px) bars = overlayLast(bars, px);
+  }
+  const sectorBars = generateSectorBars(s.sector, niftyBars);
+  const sectorCloses = sectorBars.map((b) => b.close);
+  const rs3m = pct(valueAt(sectorCloses, 63), last(sectorBars).close) - pct(valueAt(niftyCloses, 63), niftyClose);
+  const rs1mNow =
+    pct(valueAt(sectorCloses, 21), last(sectorBars).close) - pct(valueAt(niftyCloses, 21), niftyClose);
+  const rs1mPrev =
+    pct(valueAt(sectorCloses, 42), valueAt(sectorCloses, 21)) -
+    pct(valueAt(niftyCloses, 42), valueAt(niftyCloses, 21));
+  const { row } = scoreMember({
+    s,
+    bars,
+    niftyCloses,
+    niftyClose,
+    settings,
+    asOf,
+    sectorQuad: quadrant(rs3m, rs1mNow - rs1mPrev),
+  });
+  return {
+    symbol: row.symbol,
+    chart: row.chart,
+    emas: row.emas,
+    fo: row.fo,
+    cmp: row.cmp,
+    change1d: row.change1d,
+    vcp: row.vcp,
+    breakout: row.breakout,
+  };
 }
 
 function buildAlerts(input: {

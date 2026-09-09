@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChartPoint, DashboardSnapshot, DhanCredentials, StockFo, StrategySettings, SwingSetup, UniverseId } from "@/lib/types";
-import { DEFAULT_SETTINGS, STRATEGY_TEMPLATES } from "@/lib/settings";
+import { DEFAULT_SETTINGS, STRATEGY_TEMPLATES, isDefaultSettings } from "@/lib/settings";
 import { SettingsPanel } from "@/components/dashboard/settings-panel";
 import { SessionBar } from "@/components/dashboard/session-bar";
 import { StockChart } from "@/components/dashboard/stock-chart";
@@ -78,16 +78,27 @@ export function MarketDesk() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/market?universe=${u}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          universe: u,
-          settings: s,
-          dhan: creds.accessToken ? creds : undefined,
-        }),
-        signal: AbortSignal.timeout(u === "nifty500" ? 90_000 : 40_000),
-      });
+      const useBaked = !creds.accessToken && isDefaultSettings(s);
+      let res = useBaked
+        ? await fetch(`/data/${u}.json`, { cache: "force-cache", signal: AbortSignal.timeout(20_000) })
+        : await fetch(`/api/market?universe=${u}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              universe: u,
+              settings: s,
+              dhan: creds.accessToken ? creds : undefined,
+            }),
+            signal: AbortSignal.timeout(u === "nifty500" ? 90_000 : 40_000),
+          });
+      if (useBaked && !res.ok) {
+        res = await fetch(`/api/market?universe=${u}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ universe: u, settings: s }),
+          signal: AbortSignal.timeout(u === "nifty500" ? 90_000 : 40_000),
+        });
+      }
       const json = (await res.json()) as DashboardSnapshot & { error?: string };
       if (!res.ok) throw new Error(json.error || `Market API ${res.status}`);
       setData(json);

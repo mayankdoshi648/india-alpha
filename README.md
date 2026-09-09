@@ -12,7 +12,7 @@ cp .env.example .env.local   # optional server-side fallback; you can also paste
 npm run dev
 ```
 
-Open [http://127.0.0.1:43147](http://127.0.0.1:43147). The shell paints immediately; quotes then load from `/api/market`.
+Open [http://127.0.0.1:43147](http://127.0.0.1:43147). The shell paints immediately; the tape then loads from `/data/nifty50.json` (or `/api/market` in `next dev`).
 
 For a production-like local run (required if a preview iframe blocks `/_next` from `next dev`):
 
@@ -40,7 +40,7 @@ NSE (no key): `allIndices`, `fiidiiTradeData`, `option-chain-indices`, `option-c
 
 ## What is on the desk
 
-The desk is **one page**. The first paint is a light shell; the tape loads from `/api/market` so the page is not a 1MB HTML dump. Indices, mosaic, sector rotation, universe, alerts, setups, F&O and breadth sit together so you can watch without switching tabs. Configure / Dhan keys open a side panel.
+The desk is **one page**. The first paint is a light shell; the tape loads from baked `/data/*.json` (or `/api/market` when Dhan keys or custom settings are in play) so the page is not a 1MB HTML dump. Indices, mosaic, sector rotation, universe, alerts, setups, F&O and breadth sit together so you can watch without switching tabs. Configure / Dhan keys open a side panel.
 
 1. **Watch strip** — Nifty 50 or Nifty 500 (whichever group is selected), Bank Nifty, VIX, PCR, A/D, FII.
 2. **Index tape + mosaic + gainers/losers** — left column. The mosaic and movers follow the selected group.
@@ -76,7 +76,9 @@ Configure **Breakout vol** and **Retrace %** in the side panel. The drawer shows
 
 ## Open on a phone or another laptop
 
-`http://127.0.0.1:43147` only works on the machine running the desk. For a public link, publish the app (Vercel). You get a `*.vercel.app` URL that works in any browser. Dhan keys stay in that browser only — they are not stored on the server unless you set `DHAN_ACCESS_TOKEN` in the host’s environment.
+Import this repo in [Vercel](https://vercel.com/new). The build bakes Nifty 50 and Nifty 500 into static JSON, so the public `*.vercel.app` URL loads the desk without waiting on a serverless snapshot. Dhan keys stay in that browser only — they are not stored on the server unless you set `DHAN_ACCESS_TOKEN` in the host’s environment.
+
+`npm run build` writes `/data/nifty50.json` and `/data/nifty500.json` first. Local `next dev` still builds the tape on demand if those files are missing.
 
 
 ## Scripts

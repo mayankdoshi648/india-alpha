@@ -34,6 +34,9 @@ yarn-error.log*
 .env*
 !.env.example
 
+# baked demo tape (generated at build)
+/public/data/*.json
+
 # vercel
 .vercel
 
