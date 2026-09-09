@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 function credsFrom(req: Request, body?: Partial<DhanCredentials>) {
   return sanitizeDhanInput({

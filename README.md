@@ -74,6 +74,11 @@ A VCP is a Stage 2 name that coils through **successively tighter pullbacks** as
 
 Configure **Breakout vol** and **Retrace %** in the side panel. The drawer shows the contraction table, checklist ticks, and the next action in plain language.
 
+## Open on a phone or another laptop
+
+`http://127.0.0.1:43147` only works on the machine running the desk. For a public link, publish the app (Vercel). You get a `*.vercel.app` URL that works in any browser. Dhan keys stay in that browser only — they are not stored on the server unless you set `DHAN_ACCESS_TOKEN` in the host’s environment.
+
+
 ## Scripts
 
 ```bash
