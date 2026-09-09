@@ -42,8 +42,7 @@ import {
   dhanIndexLtp,
   dhanOptionChain,
 } from "@/lib/dhan";
-import { nseAllIndices, nseFiiDii, nseOptionChain } from "@/lib/nse";
-import { fetchEquityLtps, yahooIndexQuotes } from "@/lib/quotes";
+import { fetchEquityLtps } from "@/lib/quotes";
 import { mergeSettings } from "@/lib/settings";
 import {
   DHAN_INDEX_IDS,
@@ -60,6 +59,7 @@ import type {
   DataSource,
   DeskAlert,
   DerivativesRadar,
+  FlowDay,
   HeatCell,
   IndexTile,
   MacroTile,
@@ -73,17 +73,17 @@ import type {
   UniverseStock,
 } from "@/lib/types";
 
-const CACHE_VER = 15;
+const CACHE_VER = 16;
 const cache = new Map<string, { at: number; value: DashboardSnapshot }>();
 
 export type SnapshotOpts = {
-  /** Skip NSE/Dhan. Used when baking the public tape and on Vercel without keys. */
+  /** Skip live Dhan. Used when baking the public demo tape. */
   live?: boolean;
 };
 
 function liveFeedsEnabled(opts?: SnapshotOpts): boolean {
   if (opts?.live === false) return false;
-  return true;
+  return dhanConfigured();
 }
 
 function overlayLast(bars: OhlcBar[], close: number, changePct?: number): OhlcBar[] {
@@ -302,44 +302,19 @@ function streak(values: number[]): number {
 }
 
 async function tryLiveDerivatives(spot: number): Promise<{ radar?: Partial<DerivativesRadar>; source: DataSource }> {
-  if (dhanConfigured()) {
-    try {
-      const expiries = await dhanExpiryList(13, "IDX_I");
-      const expiry = expiries[0];
-      if (expiry) {
-        const chain = await dhanOptionChain(13, "IDX_I", expiry);
-        const callOi = chain.strikes.reduce((s, x) => s + x.callOi, 0);
-        const putOi = chain.strikes.reduce((s, x) => s + x.putOi, 0);
-        const pain = maxPain(chain.strikes);
-        const usedSpot = chain.spot || spot;
-        const ladder = aroundAtm(chain.strikes, usedSpot);
-        return {
-          source: "dhan",
-          radar: {
-            niftyPcr: callOi ? round(putOi / callOi, 2) : 0,
-            maxPain: pain,
-            spot: usedSpot,
-            maxPainDistancePct: round(pct(pain, usedSpot), 2),
-            callOi,
-            putOi,
-            expiry,
-            ladder,
-          },
-        };
-      }
-    } catch {
-      // fall through
-    }
-  }
+  if (!dhanConfigured()) return { source: "demo" };
   try {
-    const chain = await nseOptionChain("NIFTY");
+    const expiries = await dhanExpiryList(13, "IDX_I");
+    const expiry = expiries[0];
+    if (!expiry) return { source: "demo" };
+    const chain = await dhanOptionChain(13, "IDX_I", expiry);
     const callOi = chain.strikes.reduce((s, x) => s + x.callOi, 0);
     const putOi = chain.strikes.reduce((s, x) => s + x.putOi, 0);
     const pain = maxPain(chain.strikes);
     const usedSpot = chain.spot || spot;
     const ladder = aroundAtm(chain.strikes, usedSpot);
     return {
-      source: "nse",
+      source: "dhan",
       radar: {
         niftyPcr: callOi ? round(putOi / callOi, 2) : 0,
         maxPain: pain,
@@ -347,7 +322,7 @@ async function tryLiveDerivatives(spot: number): Promise<{ radar?: Partial<Deriv
         maxPainDistancePct: round(pct(pain, usedSpot), 2),
         callOi,
         putOi,
-        expiry: chain.expiry,
+        expiry,
         ladder,
       },
     };
@@ -356,46 +331,22 @@ async function tryLiveDerivatives(spot: number): Promise<{ radar?: Partial<Deriv
   }
 }
 
-async function tryLiveFlows() {
-  try {
-    const flows = await nseFiiDii();
-    if (flows.length) return { flows, source: "nse" as DataSource };
-  } catch {
-    // demo
-  }
-  return { flows: null as null, source: "demo" as DataSource };
+/** Dhan has no FII/DII cash-flow feed in this desk. Always the local tape. */
+async function tryLiveFlows(): Promise<{ flows: FlowDay[] | null; source: DataSource }> {
+  return { flows: null, source: "demo" };
 }
 
 async function tryLiveIndices(): Promise<Record<string, { last: number; percentChange?: number }>> {
   const out: Record<string, { last: number; percentChange?: number }> = {};
-  if (dhanConfigured()) {
-    try {
-      const ids = Object.values(DHAN_INDEX_IDS).map((x) => x.id);
-      const ltp = await dhanIndexLtp(ids);
-      for (const [name, meta] of Object.entries(DHAN_INDEX_IDS)) {
-        if (ltp[String(meta.id)]) out[name] = { last: ltp[String(meta.id)] };
-      }
-    } catch {
-      // nse
-    }
-  }
+  if (!dhanConfigured()) return out;
   try {
-    const indices = await nseAllIndices();
-    for (const idx of indices) {
-      out[idx.index] = { last: idx.last, percentChange: idx.percentChange };
+    const ids = Object.values(DHAN_INDEX_IDS).map((x) => x.id);
+    const ltp = await dhanIndexLtp(ids);
+    for (const [name, meta] of Object.entries(DHAN_INDEX_IDS)) {
+      if (ltp[String(meta.id)]) out[name] = { last: ltp[String(meta.id)] };
     }
   } catch {
-    // yahoo fill
-  }
-  if (!out["NIFTY 50"] || !out["INDIA VIX"] || !out["NIFTY 500"]) {
-    try {
-      const y = await yahooIndexQuotes();
-      for (const [name, ltp] of Object.entries(y)) {
-        if (!out[name]) out[name] = { last: ltp.last, percentChange: ltp.changePct };
-      }
-    } catch {
-      // ignore
-    }
+    // demo indices
   }
   return out;
 }
@@ -429,7 +380,7 @@ export async function buildSnapshot(
         {} as Record<string, { last: number; percentChange?: number }>,
         { bySymbol: {} as Record<string, { last: number; changePct?: number }>, source: "demo" as DataSource },
         { source: "demo" as DataSource },
-        { flows: null as null, source: "demo" as DataSource },
+        { flows: null as FlowDay[] | null, source: "demo" as DataSource },
       ];
   const quotes = equityLtps.bySymbol;
 
@@ -726,7 +677,7 @@ export async function buildSnapshot(
       name: "USD / INR",
       value: round(usdNow.close, 2),
       changePct: round(pct(usdPrev.close, usdNow.close), 2),
-      hint: usdLive ? "NSE last" : "Local tape",
+      hint: "Local tape",
       unit: "raw",
     },
     {
@@ -759,7 +710,7 @@ export async function buildSnapshot(
     generatedAt: new Date().toISOString(),
     universe,
     sources: {
-      quotes: equityLtps.source !== "demo" ? equityLtps.source : liveIdx["NIFTY 50"] ? "nse" : "demo",
+      quotes: equityLtps.source,
       derivatives: derivLive.source,
       flows: flowLive.source,
     },

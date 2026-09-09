@@ -255,5 +255,5 @@ export const DHAN_INDEX_IDS: Record<string, { id: number; segment: string }> = {
   "NIFTY 50": { id: 13, segment: "IDX_I" },
   "NIFTY BANK": { id: 25, segment: "IDX_I" },
   SENSEX: { id: 51, segment: "IDX_I" },
-  INDIA_VIX: { id: 21, segment: "IDX_I" },
+  "INDIA VIX": { id: 21, segment: "IDX_I" },
 };

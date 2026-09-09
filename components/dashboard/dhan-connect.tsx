@@ -141,7 +141,7 @@ export function DhanConnect({
                 ? "Dhan is connected. Quotes, candles and the Nifty option chain use this account."
                 : savedHere
                   ? "Keys are saved in this browser. Connect to verify them against Dhan."
-                  : "Without Dhan, the desk uses NSE when reachable, otherwise the local 8 Sep 2026 tape. Tokens last 24 hours."}
+                  : "Without Dhan, the desk stays on the local 8 Sep 2026 tape. Live last prices, indices and F&O come only from Dhan."}
         </p>
       </form>
     </Panel>

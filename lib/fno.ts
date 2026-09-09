@@ -1,6 +1,6 @@
 import { aroundAtm, maxPain, pct, round } from "@/lib/indicators";
 import { dhanConfigured, dhanExpiryList, dhanOptionChain } from "@/lib/dhan";
-import { nseEquityOptionChain } from "@/lib/nse";
+import { dhanSecurityIdFor } from "@/lib/quotes";
 import type { DataSource, OiBuild, OptionStrike, StockFo } from "@/lib/types";
 
 export function strikeStep(spot: number): number {
@@ -95,45 +95,27 @@ export async function fetchLiveStockFo(input: {
   change1d: number;
   futPremiumPct: number;
 }): Promise<StockFo | null> {
-  if (dhanConfigured() && input.securityId > 0) {
-    try {
-      const expiries = await dhanExpiryList(input.securityId, "NSE_FNO");
-      const expiry = expiries[0];
-      if (expiry) {
-        const chain = await dhanOptionChain(input.securityId, "NSE_FNO", expiry);
-        if (chain.strikes.length >= 6) {
-          return foFromChain({
-            symbol: input.symbol,
-            spot: chain.spot || input.spot,
-            expiry,
-            strikes: chain.strikes,
-            change1d: input.change1d,
-            source: "dhan",
-            futPremiumPct: input.futPremiumPct,
-          });
-        }
-      }
-    } catch {
-      // NSE fallback
-    }
-  }
+  if (!dhanConfigured()) return null;
+  const securityId = input.securityId > 0 ? input.securityId : await dhanSecurityIdFor(input.symbol);
+  if (!securityId) return null;
   try {
-    const chain = await nseEquityOptionChain(input.symbol);
-    if (chain.strikes.length >= 6) {
-      return foFromChain({
-        symbol: input.symbol,
-        spot: chain.spot || input.spot,
-        expiry: chain.expiry,
-        strikes: chain.strikes,
-        change1d: input.change1d,
-        source: "nse",
-        futPremiumPct: input.futPremiumPct,
-      });
-    }
+    const expiries = await dhanExpiryList(securityId, "NSE_FNO");
+    const expiry = expiries[0];
+    if (!expiry) return null;
+    const chain = await dhanOptionChain(securityId, "NSE_FNO", expiry);
+    if (chain.strikes.length < 6) return null;
+    return foFromChain({
+      symbol: input.symbol,
+      spot: chain.spot || input.spot,
+      expiry,
+      strikes: chain.strikes,
+      change1d: input.change1d,
+      source: "dhan",
+      futPremiumPct: input.futPremiumPct,
+    });
   } catch {
     return null;
   }
-  return null;
 }
 
 export function pctFromPain(spot: number, pain: number): number {
