@@ -199,7 +199,7 @@ export function UniverseTable({
   }, [shown]);
 
   return (
-    <div className={cn(embedded ? "flex h-full min-h-0 flex-col gap-2" : "space-y-3")}>
+    <div className={cn(embedded ? "flex min-h-[320px] flex-col gap-2 xl:h-full xl:min-h-0" : "space-y-3")}>
       <div id="universe-quad-counts" className={cn("grid gap-1.5", embedded ? "grid-cols-4" : "grid-cols-4 xl:grid-cols-8")}>
         {QUADS.map((q) => (
           <button
@@ -337,7 +337,7 @@ export function UniverseTable({
           </button>
         </span>
       </p>
-      <div className={cn("overflow-auto rounded-lg border border-white/8", embedded && "min-h-0 flex-1")}>
+      <div className={cn("overflow-auto rounded-lg border border-white/8", embedded && "min-h-[240px] flex-1")}>
         <table className={cn("w-full border-collapse text-left text-xs", WIDTH[preset])}>
           <thead className="sticky top-0 z-10 bg-[#0b1424] text-[10px] tracking-wide text-muted-foreground uppercase">
             <tr>

@@ -28,14 +28,14 @@ function Pane({
   return (
     <section
       className={cn(
-        "flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-[#121b2c]",
+        "flex flex-col rounded-xl border border-white/10 bg-[#121b2c] xl:min-h-0 xl:overflow-hidden",
         className,
       )}
     >
       <h2 className="shrink-0 border-b border-white/8 px-3 py-2 text-[11px] font-semibold tracking-[0.16em] text-slate-400 uppercase">
         {title}
       </h2>
-      <div className="min-h-0 flex-1 overflow-auto p-3">{children}</div>
+      <div className="p-3 xl:min-h-0 xl:flex-1 xl:overflow-auto">{children}</div>
     </section>
   );
 }
@@ -57,7 +57,7 @@ export function WatchStrip({ data }: { data: DashboardSnapshot }) {
   ].filter(Boolean) as { k: string; v: string; chg: number | null }[];
 
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+    <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
       {cards.map((c) => {
         const up = (c.chg ?? 0) >= 0;
         return (
@@ -290,10 +290,10 @@ export function DeskBoard({
   const losers = [...data.stocks].sort((a, b) => a.change1d - b.change1d).slice(0, 5);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2.5">
+    <div className="flex flex-1 flex-col gap-2.5 xl:min-h-0">
       <WatchStrip data={data} />
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-2.5 xl:grid-cols-[20rem_minmax(0,1fr)_22rem] xl:grid-rows-[minmax(0,1fr)]">
-        <div className="flex min-h-0 flex-col gap-2.5">
+      <div className="grid grid-cols-1 gap-2.5 xl:min-h-0 xl:flex-1 xl:grid-cols-[20rem_minmax(0,1fr)_22rem] xl:grid-rows-[minmax(0,1fr)]">
+        <div className="flex flex-col gap-2.5 xl:min-h-0">
           <Pane title="Index tape" className="xl:max-h-[34%]">
             <IndexList tiles={data.indices} />
           </Pane>
@@ -308,13 +308,13 @@ export function DeskBoard({
           </Pane>
         </div>
 
-        <div className="flex min-h-0 flex-col gap-2.5">
+        <div className="flex flex-col gap-2.5 xl:min-h-0">
           <Pane title="Sector rotation" className="h-[240px] shrink-0">
             <DeskErrorBoundary>
               <SectorMatrix sectors={data.sectors} heatmap={data.heatmap} compact />
             </DeskErrorBoundary>
           </Pane>
-          <Pane title="Universe" className="xl:flex-1">
+          <Pane title="Universe" className="min-h-[420px] xl:flex-1 xl:min-h-0">
             <UniverseTable
               key={data.universe}
               rows={data.stocks}
@@ -326,7 +326,7 @@ export function DeskBoard({
           </Pane>
         </div>
 
-        <div className="flex min-h-0 flex-col gap-2.5">
+        <div className="flex flex-col gap-2.5 xl:min-h-0">
           <Pane title="Alerts" className="xl:max-h-[26%]">
             <AlertList alerts={data.alerts ?? []} onPick={onOpen} />
           </Pane>
