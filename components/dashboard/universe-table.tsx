@@ -206,8 +206,9 @@ export function UniverseTable({
   }, [shown]);
 
   return (
-    <div className={cn(embedded ? "flex min-h-[320px] flex-col gap-2 xl:h-full xl:min-h-0" : "space-y-3")}>
-      <div id="universe-quad-counts" className={cn("grid gap-1.5", embedded ? "grid-cols-4" : "grid-cols-4 xl:grid-cols-8")}>
+    <div className={cn(embedded ? "flex h-full min-h-0 flex-col gap-1.5" : "space-y-3")}>
+      {embedded ? null : (
+      <div id="universe-quad-counts" className="grid grid-cols-4 gap-1.5 xl:grid-cols-8">
         {QUADS.map((q) => (
           <button
             key={q}
@@ -226,8 +227,7 @@ export function UniverseTable({
             <p className="font-mono text-base tabular-nums">{stats.counts[q]}</p>
           </button>
         ))}
-        {embedded ? null : (
-          <>
+        <>
         <div className="rounded-xl border border-white/8 bg-card/60 px-3 py-2">
           <p className="text-[11px] text-muted-foreground">Above 200 EMA</p>
           <p className="font-mono text-lg tabular-nums">{stats.above200}</p>
@@ -246,9 +246,9 @@ export function UniverseTable({
             {stats.earnSoon} · {stats.oversold}
           </p>
         </div>
-          </>
-        )}
+        </>
       </div>
+      )}
       <div className={cn("flex flex-col gap-2", embedded ? "" : "lg:flex-row lg:items-center lg:justify-between")}>
         <div className="relative max-w-sm flex-1">
           <Search className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
@@ -344,7 +344,7 @@ export function UniverseTable({
           </button>
         </span>
       </p>
-      <div className={cn("overflow-auto rounded-lg border border-white/8", embedded && "min-h-[240px] flex-1")}>
+      <div className={cn("overflow-auto rounded-lg border border-white/8", embedded && "min-h-0 flex-1")}>
         <table className={cn("w-full border-collapse text-left text-xs", WIDTH[preset])}>
           <thead className="sticky top-0 z-10 bg-[#0b1424] text-[10px] tracking-wide text-muted-foreground uppercase">
             <tr>
@@ -386,7 +386,7 @@ export function UniverseTable({
                       <Bookmark className={cn("size-4", watch.has(r.symbol) && "fill-amber-300")} />
                     </button>
                   </td>
-                  <td className={cn("sticky left-9 bg-[#0e1728] px-2 py-1.5", hide("stock"))}>
+                  <td className={cn("sticky left-9 z-[1] bg-[#0e1728] px-2 py-1.5", hide("stock"))}>
                     <button type="button" onClick={() => onOpen(r.symbol)} className="text-left hover:text-cyan-300">
                       <p className="font-medium underline-offset-2 hover:underline">
                         {r.symbol}
@@ -396,9 +396,9 @@ export function UniverseTable({
                           </span>
                         ) : null}
                       </p>
-                      <p className="max-w-40 truncate text-[10px] text-muted-foreground">
-                        {r.name}
-                        {r.fo ? ` · PCR ${r.fo.pcr.toFixed(2)}` : ""}
+                      <p className="mt-0.5 flex items-baseline gap-1.5">
+                        <span className="font-mono text-[12px] text-white tabular-nums">{inr(r.cmp)}</span>
+                        <Chg value={r.change1d} />
                       </p>
                     </button>
                   </td>
@@ -411,14 +411,14 @@ export function UniverseTable({
                       {r.sectorQuad}
                     </span>
                   </td>
-                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("cmp"))}>
+                  <td className={cn("px-2 py-1.5 font-mono whitespace-nowrap tabular-nums", hide("cmp"))}>
                     <p>{inr(r.cmp)}</p>
                     <Chg value={r.change1d} />
                   </td>
                   <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("dayH"))}>{inr(r.dayHigh)}</td>
                   <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("dayL"))}>{inr(r.dayLow)}</td>
                   <td className={cn("px-2 py-1.5", hide("range"))}><RangeBar value={r.rangePos} /></td>
-                  <td className={cn("px-2 py-1.5", hide("d1"))}><Chg value={r.change1d} /></td>
+                  <td className={cn("px-2 py-1.5 whitespace-nowrap", hide("d1"))}><Chg value={r.change1d} /></td>
                   <td className={cn("px-2 py-1.5", hide("w1"))}><Chg value={r.change1w} /></td>
                   <td className={cn("px-2 py-1.5", hide("m1"))}><Chg value={r.change1m} /></td>
                   <td className={cn("px-2 py-1.5", hide("m3"))}><Chg value={r.change3m} /></td>

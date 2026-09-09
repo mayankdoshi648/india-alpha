@@ -367,12 +367,7 @@ export function DeskBoard({
         </div>
 
         <div className="flex flex-col gap-2.5 xl:min-h-0">
-          <Pane title="Sector rotation" className="min-h-[380px] xl:max-h-[52%] xl:min-h-[380px]">
-            <DeskErrorBoundary>
-              <SectorMatrix sectors={data.sectors} heatmap={data.heatmap} compact heading={false} onOpen={onOpen} />
-            </DeskErrorBoundary>
-          </Pane>
-          <Pane title={data.universe === "nifty500" ? `Universe · Nifty 500 · ${data.stocks.length}` : "Universe · Nifty 50"} className="min-h-[420px] xl:flex-1 xl:min-h-0">
+          <Pane title={data.universe === "nifty500" ? `Universe · Nifty 500 · ${data.stocks.length}` : "Universe · Nifty 50"} className="min-h-[360px] xl:flex-1 xl:min-h-[320px]">
             <UniverseTable
               key={data.universe}
               rows={data.stocks}
@@ -381,6 +376,11 @@ export function DeskBoard({
               onOpen={onOpen}
               embedded
             />
+          </Pane>
+          <Pane title="Sector rotation" className="min-h-[220px] xl:max-h-[40%] xl:min-h-[220px]">
+            <DeskErrorBoundary>
+              <SectorMatrix sectors={data.sectors} heatmap={data.heatmap} compact heading={false} onOpen={onOpen} />
+            </DeskErrorBoundary>
           </Pane>
         </div>
 
