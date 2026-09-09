@@ -8,8 +8,8 @@ import { SessionBar } from "@/components/dashboard/session-bar";
 import { StockChart } from "@/components/dashboard/stock-chart";
 import { StockFoPanel } from "@/components/dashboard/stock-fo";
 import { SwingPanel } from "@/components/dashboard/swing-setup";
-import { ChartPatternMini } from "@/components/dashboard/chart-pattern-board";
-import { DeskBoard } from "@/components/dashboard/board";
+import { ChartPatternBoard, ChartPatternMini } from "@/components/dashboard/chart-pattern-board";
+import { DeskBoard, WatchStrip } from "@/components/dashboard/board";
 import { DeskErrorBoundary } from "@/components/dashboard/error-boundary";
 import { Panel, Drawer } from "@/components/dashboard/primitives";
 import { Button } from "@/components/ui/button";
@@ -46,8 +46,34 @@ const EMPTY_WATCH: WatchStore = {
 
 const EMPTY_DHAN: DhanCredentials = { accessToken: "", clientId: "" };
 
+type DeskView = "desk" | "patterns";
+
+function readDeskView(): DeskView {
+  try {
+    const q = new URLSearchParams(window.location.search).get("view");
+    if (q === "desk" || q === "patterns") return q;
+    const saved = localStorage.getItem("imd-view");
+    if (saved === "desk" || saved === "patterns") return saved;
+  } catch {
+    // ignore
+  }
+  return "patterns";
+}
+
+function persistDeskView(view: DeskView) {
+  try {
+    localStorage.setItem("imd-view", view);
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", view);
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  } catch {
+    // ignore
+  }
+}
+
 export function MarketDesk() {
   const [universe, setUniverse] = useState<UniverseId>("nifty50");
+  const [view, setView] = useState<DeskView>("patterns");
   const [settings, setSettings] = useState<StrategySettings>(DEFAULT_SETTINGS);
   const [data, setData] = useState<DashboardSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +95,11 @@ export function MarketDesk() {
   const persistWatch = (next: WatchStore) => {
     setWatch(next);
     localStorage.setItem("imd-watch", JSON.stringify(next));
+  };
+
+  const setDeskView = (next: DeskView) => {
+    setView(next);
+    persistDeskView(next);
   };
 
   const loadTape = useCallback(async (
@@ -108,7 +139,12 @@ export function MarketDesk() {
       if (!res.ok) {
         if (!painted) throw new Error(json.error || `Market API ${res.status}`);
       } else {
-        setData(json);
+        setData((prev) => {
+          if ((!json.chartPatterns || json.chartPatterns.length === 0) && prev?.chartPatterns?.length) {
+            return { ...json, chartPatterns: prev.chartPatterns };
+          }
+          return json;
+        });
         setUniverse(json.universe ?? u);
       }
       try {
@@ -141,6 +177,9 @@ export function MarketDesk() {
         nextUniverse = "nifty500";
         setUniverse("nifty500");
       }
+      const nextView = readDeskView();
+      setView(nextView);
+      persistDeskView(nextView);
       const d = localStorage.getItem("imd-dhan");
       if (d) {
         const parsed = JSON.parse(d) as DhanCredentials;
@@ -341,6 +380,29 @@ export function MarketDesk() {
             </div>
           </div>
           <div className="ml-auto flex flex-wrap items-center gap-1.5">
+              <div className="flex overflow-hidden rounded-md border border-amber-400/40">
+                <button
+                  type="button"
+                  id="view-patterns"
+                  onClick={() => setDeskView("patterns")}
+                  className={`inline-flex h-8 items-center px-3 text-[13px] font-medium ${view === "patterns" ? "bg-amber-400/20 text-amber-100" : "text-amber-200/70 hover:bg-amber-400/10"}`}
+                >
+                  Chart patterns
+                  {data?.chartPatterns?.length ? (
+                    <span className="ml-1.5 rounded-md bg-amber-400/20 px-1.5 font-mono text-[11px] tabular-nums">
+                      {data.chartPatterns.length}
+                    </span>
+                  ) : null}
+                </button>
+                <button
+                  type="button"
+                  id="view-desk"
+                  onClick={() => setDeskView("desk")}
+                  className={`h-8 px-3 text-[13px] ${view === "desk" ? "bg-amber-400/20 text-amber-100" : "text-slate-400 hover:bg-white/5"}`}
+                >
+                  Desk
+                </button>
+              </div>
               <div className="flex overflow-hidden rounded-md border border-white/10">
                 <button
                   type="button"
@@ -367,19 +429,6 @@ export function MarketDesk() {
                   Nifty 500
                 </button>
               </div>
-              <button
-                type="button"
-                id="jump-breakout-patterns"
-                onClick={() => document.getElementById("breakout-patterns")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                className="inline-flex h-8 items-center gap-1 rounded-lg border border-amber-400/40 bg-amber-400/10 px-2.5 text-[13px] font-medium text-amber-100 hover:bg-amber-400/20"
-              >
-                Patterns
-                {data?.chartPatterns?.length ? (
-                  <span className="rounded-md bg-amber-400/20 px-1.5 font-mono text-[11px] tabular-nums">
-                    {data.chartPatterns.length}
-                  </span>
-                ) : null}
-              </button>
               <select
                 value={watch.active}
                 onChange={(e) =>
@@ -447,12 +496,37 @@ export function MarketDesk() {
 
         {data ? (
           <DeskErrorBoundary>
-            <DeskBoard
-              data={data}
-              watch={watchSet}
-              onToggleWatch={toggleWatch}
-              onOpen={setOpenSymbol}
-            />
+            {view === "patterns" ? (
+              <div className="flex min-h-0 flex-1 flex-col gap-2.5">
+                <WatchStrip data={data} />
+                <section
+                  id="breakout-patterns"
+                  className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-amber-400/50 bg-[#121b2c]"
+                >
+                  <div className="shrink-0 border-b border-amber-400/20 px-4 py-3">
+                    <h1 className="text-lg font-semibold tracking-tight text-white">Chart patterns</h1>
+                    <p className="text-[13px] text-slate-400">
+                      Triangles, flags, wedges, head &amp; shoulders, double/triple on daily, weekly and monthly bars.
+                    </p>
+                  </div>
+                  <div className="min-h-0 flex-1 overflow-auto p-4">
+                    <ChartPatternBoard
+                      variant="page"
+                      hits={data.chartPatterns ?? []}
+                      universe={data.universe}
+                      onOpen={setOpenSymbol}
+                    />
+                  </div>
+                </section>
+              </div>
+            ) : (
+              <DeskBoard
+                data={data}
+                watch={watchSet}
+                onToggleWatch={toggleWatch}
+                onOpen={setOpenSymbol}
+              />
+            )}
           </DeskErrorBoundary>
         ) : !loading && error ? (
           <div className="flex flex-1 items-center justify-center text-sm text-slate-500">

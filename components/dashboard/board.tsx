@@ -344,10 +344,12 @@ export function DeskBoard({
       <WatchStrip data={data} />
       <Pane
         id="breakout-patterns"
-        title={`Breakout / breakdown · triangles, flags, wedges, H&S · ${data.chartPatterns?.length ?? 0}`}
+        title={`Chart patterns · triangles, flags, wedges, H&S · ${data.chartPatterns?.length ?? 0}`}
         className="shrink-0 scroll-mt-16 border-amber-400/40 xl:overflow-visible"
       >
-        <ChartPatternBoard hits={data.chartPatterns ?? []} universe={data.universe} onOpen={onOpen} />
+        <DeskErrorBoundary>
+          <ChartPatternBoard hits={data.chartPatterns ?? []} universe={data.universe} onOpen={onOpen} />
+        </DeskErrorBoundary>
       </Pane>
       <div className="grid grid-cols-1 gap-2.5 xl:min-h-0 xl:flex-1 xl:grid-cols-[20rem_minmax(0,1fr)_22rem] xl:grid-rows-[minmax(0,1fr)]">
         <div className="flex flex-col gap-2.5 xl:min-h-0">
