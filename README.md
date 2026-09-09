@@ -1,6 +1,6 @@
 # India Market Desk
 
-A Nifty 50 / Nifty 500 terminal: one pulse bar, tabbed workspaces (Tape, Setups, F&O, Sectors, Universe, Breadth, Feed), sector rotation, and a universe inspector.
+A single-screen Nifty 50 / Nifty 500 desk: index tape, mosaic, sector rotation, universe, alerts, setups, F&O and breadth on one page.
 
 Quotes, historical candles and the Nifty option chain come from **DhanHQ** when you add credentials. **NSE India** is used for FII/DII cash flow and index last prices when the public feed is reachable. If neither is available, the desk still runs on a deterministic tape anchored to the 8 Sep 2026 close (Nifty 23,635) so every panel stays usable.
 
@@ -40,15 +40,13 @@ NSE (no key): `allIndices`, `fiidiiTradeData`, `option-chain-indices`.
 
 ## What is on the desk
 
-1. **Tape** — pulse bar (Nifty, Bank Nifty, VIX, PCR, A/D, FII), alerts, session macro, index tiles, Nifty 50 mosaic, gainers / losers / volume / RSI lists. Keys `1`.
-2. **Setups** — Stage 2, breakouts, volume surge, VCP, divergences, pivot reclaim, oversold pullback. Key `2`.
-3. **F&O** — FII/DII flow, India VIX, PCR, max pain, Nifty OI ladder. Key `3`.
-4. **Sectors** — compact named chips, four-colour rotation map with labelled dots, constituent heatmap. Key `4`.
-5. **Universe** — concentrated Core columns by default (CMP, 1D/1W, RSI, volume spike, stack, 52W, Stage 2, setups). Switch Tape / Structure / Flow / Earnings / All for more fields. Filter by rotation colour. Key `5`.
-6. **Breadth** — EMA gauges D/W/M plus A/D and trend filters. Key `6`.
-7. **Feed** — DhanHQ JWT. Key `7`.
+The desk is **one page**. Indices, mosaic, sector rotation, universe, alerts, setups, F&O and breadth sit together so you can watch the tape without switching tabs. Configure / Dhan keys open a side panel.
 
-Also: stock drawer with 80-session chart, watchlists, Configure templates, 60s auto-refresh while NSE is open.
+1. **Watch strip** — Nifty, Bank Nifty, VIX, PCR, A/D, FII.
+2. **Index tape + mosaic + gainers/losers** — left column.
+3. **Sector rotation + universe** — centre.
+4. **Alerts, setups, OI ladder, EMA breadth** — right column.
+5. **Stock drawer** — click any name for chart and notes.
 
 ## Scripts
 

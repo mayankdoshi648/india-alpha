@@ -2,24 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { DashboardSnapshot, DhanCredentials, StrategySettings, UniverseId } from "@/lib/types";
-import { DhanConnect } from "@/components/dashboard/dhan-connect";
 import { DEFAULT_SETTINGS, STRATEGY_TEMPLATES } from "@/lib/settings";
-import { IndexTiles } from "@/components/dashboard/index-tiles";
-import { SetupRadar } from "@/components/dashboard/setup-radar";
-import { Derivatives } from "@/components/dashboard/derivatives";
-import { OptionLadder } from "@/components/dashboard/option-ladder";
-import { BreadthGauges } from "@/components/dashboard/breadth-gauges";
-import { SectorMatrix } from "@/components/dashboard/sector-matrix";
-import { UniverseTable } from "@/components/dashboard/universe-table";
-import { BreadthSection } from "@/components/dashboard/market-breadth";
 import { SettingsPanel } from "@/components/dashboard/settings-panel";
 import { SessionBar } from "@/components/dashboard/session-bar";
-import { MacroStrip } from "@/components/dashboard/macro-strip";
-import { DeskAlerts } from "@/components/dashboard/desk-alerts";
 import { StockChart } from "@/components/dashboard/stock-chart";
-import { PulseBar } from "@/components/dashboard/pulse-bar";
-import { Movers, NameMosaic } from "@/components/dashboard/movers";
-import { Section, Panel, Drawer } from "@/components/dashboard/primitives";
+import { DeskBoard } from "@/components/dashboard/board";
+import { Panel, Drawer } from "@/components/dashboard/primitives";
 import { Button } from "@/components/ui/button";
 import { PATTERN_LABEL, inr } from "@/lib/format";
 import { Chg, EmaPills } from "@/components/dashboard/primitives";
@@ -39,33 +27,6 @@ const LISTS = [
   { id: "breakouts", name: "Breakouts" },
   { id: "research", name: "Research" },
 ] as const;
-
-type DeskTab = "tape" | "setups" | "fo" | "sectors" | "universe" | "breadth" | "feed";
-
-const TABS: { id: DeskTab; label: string; hint: string }[] = [
-  { id: "tape", label: "Tape", hint: "1" },
-  { id: "setups", label: "Setups", hint: "2" },
-  { id: "fo", label: "F&O", hint: "3" },
-  { id: "sectors", label: "Sectors", hint: "4" },
-  { id: "universe", label: "Universe", hint: "5" },
-  { id: "breadth", label: "Breadth", hint: "6" },
-  { id: "feed", label: "Feed", hint: "7" },
-];
-
-const HASH_TAB: Record<string, DeskTab> = {
-  dhan: "feed",
-  alerts: "tape",
-  session: "tape",
-  indices: "tape",
-  setups: "setups",
-  derivatives: "fo",
-  ladder: "fo",
-  gauges: "breadth",
-  sectors: "sectors",
-  universe: "universe",
-  breadth: "breadth",
-  feed: "feed",
-};
 
 type WatchStore = {
   active: (typeof LISTS)[number]["id"];
@@ -94,13 +55,6 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
   const [dhanBusy, setDhanBusy] = useState(false);
   const [dhanStatus, setDhanStatus] = useState<string | null>(null);
   const [dhanError, setDhanError] = useState<string | null>(null);
-  const [tab, setTab] = useState<DeskTab>("tape");
-
-  function goTab(next: DeskTab) {
-    setTab(next);
-    const hash = next === "tape" ? "indices" : next === "fo" ? "derivatives" : next === "feed" ? "dhan" : next;
-    window.history.replaceState(null, "", `#${hash}`);
-  }
 
   /* eslint-disable react-hooks/set-state-in-effect -- hydrate private lists from localStorage after paint */
   useEffect(() => {
@@ -126,36 +80,6 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
     }
     // First hydrate only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    const apply = () => {
-      const h = window.location.hash.replace("#", "");
-      if (HASH_TAB[h]) setTab(HASH_TAB[h]);
-    };
-    apply();
-    window.addEventListener("hashchange", apply);
-    return () => window.removeEventListener("hashchange", apply);
-  }, []);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) {
-        return;
-      }
-      const map: Record<string, DeskTab> = {
-        "1": "tape",
-        "2": "setups",
-        "3": "fo",
-        "4": "sectors",
-        "5": "universe",
-        "6": "breadth",
-        "7": "feed",
-      };
-      if (map[e.key]) goTab(map[e.key]);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -291,21 +215,19 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#070b14] text-slate-100">
-      <header className="sticky top-0 z-40 border-b border-white/8 bg-[#070b14]/92 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1680px] flex-col gap-2 px-3 py-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2">
-              <div className="flex size-8 items-center justify-center rounded-md bg-cyan-400/15 text-cyan-300">
-                <Landmark className="size-3.5" />
-              </div>
-              <div>
-                <p className="text-[10px] tracking-[0.18em] text-cyan-400/80 uppercase">India Market Desk</p>
-                <SessionBar data={data} token={dhan.accessToken} />
-              </div>
+    <div className="flex h-dvh flex-col overflow-hidden bg-[#0b1220] text-slate-100">
+      <header className="shrink-0 border-b border-white/10 bg-[#0b1220]">
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2">
+          <div className="flex items-center gap-2.5">
+            <div className="flex size-9 items-center justify-center rounded-lg bg-sky-400/15 text-sky-300">
+              <Landmark className="size-4" />
             </div>
-            <PulseBar data={data} />
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div>
+              <p className="text-[13px] font-semibold tracking-tight text-white">India Market Desk</p>
+              <SessionBar data={data} token={dhan.accessToken} />
+            </div>
+          </div>
+          <div className="ml-auto flex flex-wrap items-center gap-1.5">
               <div className="flex overflow-hidden rounded-md border border-white/10">
                 <button
                   type="button"
@@ -348,56 +270,35 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
               <button
                 type="button"
                 id="dhan-keys-link"
-                onClick={() => goTab("feed")}
+                onClick={() => setSettingsOpen(true)}
                 className={cn(
-                  "inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[12px]",
+                  "inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-[13px]",
                   dhanLive
-                    ? "border-emerald-400/30 text-emerald-200"
-                    : "border-cyan-400/40 text-cyan-200 hover:bg-cyan-400/10",
+                    ? "border-emerald-400/40 text-emerald-200"
+                    : "border-sky-400/40 text-sky-200 hover:bg-sky-400/10",
                 )}
               >
                 <KeyRound className="size-3.5" />
-                {dhanLive ? "Dhan" : "Keys"}
+                {dhanLive ? "Dhan live" : "Connect"}
               </button>
-              <Button size="sm" variant="outline" className="h-7" onClick={() => void load()} disabled={loading}>
+              <Button size="sm" variant="outline" className="h-8" onClick={() => void load()} disabled={loading}>
                 {loading ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}
+                Refresh
               </Button>
               <button
                 type="button"
                 id="configure-desk"
                 onClick={() => setSettingsOpen(true)}
-                className="inline-flex h-7 items-center gap-1 rounded-md bg-cyan-400 px-2.5 text-[12px] font-medium text-slate-950 hover:bg-cyan-300"
+                className="inline-flex h-8 items-center gap-1 rounded-lg bg-sky-400 px-3 text-[13px] font-medium text-slate-950 hover:bg-sky-300"
               >
                 <Settings2 className="size-3.5" />
-                Config
+                Configure
               </button>
             </div>
           </div>
-          <nav className="flex items-center gap-1 overflow-x-auto">
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => goTab(t.id)}
-                className={cn(
-                  "inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12px]",
-                  tab === t.id
-                    ? "bg-cyan-400/15 text-cyan-100"
-                    : "text-muted-foreground hover:bg-white/5 hover:text-slate-200",
-                )}
-              >
-                {t.label}
-                <kbd className="hidden font-mono text-[10px] text-white/30 sm:inline">{t.hint}</kbd>
-              </button>
-            ))}
-            <span className="ml-auto hidden font-mono text-[10px] text-muted-foreground sm:inline">
-              {data.stocks.length} names · keys 1–7
-            </span>
-          </nav>
-        </div>
       </header>
 
-      <main className="mx-auto flex max-w-[1680px] flex-1 flex-col gap-3 px-3 py-3">
+      <main className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-auto px-3 py-2.5 xl:overflow-hidden">
         {error ? (
           <Panel className="flex items-center gap-3 text-rose-300">
             <WifiOff className="size-4" />
@@ -410,86 +311,12 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
           </div>
         ) : null}
 
-        {tab === "tape" ? (
-          <div className="space-y-3">
-            <Section id="alerts" kicker="Radar" title="Alerts">
-              <DeskAlerts alerts={data.alerts ?? []} onPick={setOpenSymbol} />
-            </Section>
-            <Section id="session" kicker="Risk" title="Session macro">
-              <MacroStrip tiles={data.macro ?? []} />
-            </Section>
-            <Section id="indices" kicker="01" title="Index tape">
-              <IndexTiles tiles={data.indices} />
-            </Section>
-            <NameMosaic rows={data.stocks} onOpen={setOpenSymbol} />
-            <Movers rows={data.stocks} onOpen={setOpenSymbol} />
-          </div>
-        ) : null}
-
-        {tab === "setups" ? (
-          <Section id="setups" kicker="Scanner" title="Setups">
-            <SetupRadar hits={data.patterns} onPick={setOpenSymbol} />
-          </Section>
-        ) : null}
-
-        {tab === "fo" ? (
-          <div className="space-y-3">
-            <Section id="derivatives" kicker="02" title="Institutional F&O">
-              <Derivatives data={data.derivatives} />
-            </Section>
-            <Section id="ladder" kicker="OI" title="Nifty option ladder">
-              <OptionLadder data={data.derivatives} />
-            </Section>
-          </div>
-        ) : null}
-
-        {tab === "sectors" ? (
-          <Section id="sectors" kicker="04" title="Sector rotation">
-            <SectorMatrix sectors={data.sectors} heatmap={data.heatmap} />
-          </Section>
-        ) : null}
-
-        {tab === "universe" ? (
-          <Section id="universe" kicker="05" title="Universe inspector">
-            <UniverseTable
-              key={data.universe}
-              rows={data.stocks}
-              watch={watchSet}
-              onToggleWatch={toggleWatch}
-              onOpen={setOpenSymbol}
-            />
-          </Section>
-        ) : null}
-
-        {tab === "breadth" ? (
-          <div className="space-y-3">
-            <Section id="gauges" kicker="03" title="EMA breadth">
-              <BreadthGauges gauges={data.breadthGauges} />
-            </Section>
-            <Section id="breadth" kicker="Trend" title="Market breadth">
-              <BreadthSection breadth={data.breadth} trend={data.trend} />
-            </Section>
-          </div>
-        ) : null}
-
-        {tab === "feed" ? (
-          <Section
-            id="dhan"
-            kicker="Feed"
-            title="DhanHQ keys"
-            subtitle="Paste a 24-hour JWT from web.dhan.co. Client ID is optional."
-          >
-            <DhanConnect
-              stored={dhan}
-              liveConnected={dhanLive}
-              busy={dhanBusy}
-              status={dhanStatus}
-              error={dhanError}
-              onConnect={connectDhan}
-              onDisconnect={disconnectDhan}
-            />
-          </Section>
-        ) : null}
+        <DeskBoard
+          data={data}
+          watch={watchSet}
+          onToggleWatch={toggleWatch}
+          onOpen={setOpenSymbol}
+        />
       </main>
 
       <SettingsPanel

@@ -138,11 +138,13 @@ export function UniverseTable({
   watch,
   onToggleWatch,
   onOpen,
+  embedded = false,
 }: {
   rows: StockRow[];
   watch: Set<string>;
   onToggleWatch: (symbol: string) => void;
   onOpen: (symbol: string) => void;
+  embedded?: boolean;
 }) {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>("all");
@@ -197,8 +199,8 @@ export function UniverseTable({
   }, [shown]);
 
   return (
-    <div className="space-y-3">
-      <div id="universe-quad-counts" className="grid grid-cols-4 gap-1.5 xl:grid-cols-8">
+    <div className={cn(embedded ? "flex h-full min-h-0 flex-col gap-2" : "space-y-3")}>
+      <div id="universe-quad-counts" className={cn("grid gap-1.5", embedded ? "grid-cols-4" : "grid-cols-4 xl:grid-cols-8")}>
         {QUADS.map((q) => (
           <button
             key={q}
@@ -217,6 +219,8 @@ export function UniverseTable({
             <p className="font-mono text-base tabular-nums">{stats.counts[q]}</p>
           </button>
         ))}
+        {embedded ? null : (
+          <>
         <div className="rounded-xl border border-white/8 bg-card/60 px-3 py-2">
           <p className="text-[11px] text-muted-foreground">Above 200 EMA</p>
           <p className="font-mono text-lg tabular-nums">{stats.above200}</p>
@@ -235,8 +239,10 @@ export function UniverseTable({
             {stats.earnSoon} · {stats.oversold}
           </p>
         </div>
+          </>
+        )}
       </div>
-      <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+      <div className={cn("flex flex-col gap-2", embedded ? "" : "lg:flex-row lg:items-center lg:justify-between")}>
         <div className="relative max-w-sm flex-1">
           <Search className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
           <Input
@@ -246,7 +252,7 @@ export function UniverseTable({
             className="pl-8"
           />
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div className={cn("flex flex-wrap gap-1.5", embedded && "hidden")}>
           {(["all", "large", "mid", "small"] as const).map((c) => (
             <button
               key={c}
@@ -275,7 +281,7 @@ export function UniverseTable({
           ))}
         </div>
       </div>
-      <div className="flex flex-wrap gap-1.5">
+      <div className={cn("flex flex-wrap gap-1.5", embedded && "hidden")}>
         <button
           type="button"
           onClick={() => setSector("all")}
@@ -331,7 +337,7 @@ export function UniverseTable({
           </button>
         </span>
       </p>
-      <div className="overflow-auto rounded-lg border border-white/8">
+      <div className={cn("overflow-auto rounded-lg border border-white/8", embedded && "min-h-0 flex-1")}>
         <table className={cn("w-full border-collapse text-left text-xs", WIDTH[preset])}>
           <thead className="sticky top-0 z-10 bg-[#0b1424] text-[10px] tracking-wide text-muted-foreground uppercase">
             <tr>

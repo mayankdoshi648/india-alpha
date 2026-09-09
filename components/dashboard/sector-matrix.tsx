@@ -98,9 +98,11 @@ function nudgeLabels(raw: Omit<Point, "nudge">[]): Point[] {
 export function SectorMatrix({
   sectors,
   heatmap,
+  compact = false,
 }: {
   sectors: SectorTile[];
   heatmap: HeatCell[];
+  compact?: boolean;
 }) {
   const [sector, setSector] = useState<string | null>(sectors[0]?.name ?? null);
   const cells = heatmap.filter((h) => !sector || h.sector === sector);
@@ -125,7 +127,8 @@ export function SectorMatrix({
   }, [points]);
 
   return (
-    <div className="space-y-3">
+    <div className={cn("space-y-2", compact && "-m-1")}>
+      {compact ? null : (
       <div className="flex flex-wrap gap-1.5">
         {sectors.map((s) => {
           const up = s.changePct >= 0;
@@ -151,9 +154,20 @@ export function SectorMatrix({
           );
         })}
       </div>
+      )}
 
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-5">
-        <Panel className="xl:col-span-3">
+      <div className={cn("grid grid-cols-1 gap-3", compact ? "xl:grid-cols-1" : "xl:grid-cols-5")}>
+        <Panel className={cn(compact ? "border-0 bg-transparent p-0 shadow-none" : "xl:col-span-3")}>
+        {compact ? (
+          <div className="mb-1 flex flex-wrap gap-3 text-[12px]">
+            {QUADS.map((q) => (
+              <span key={q} className="inline-flex items-center gap-1.5 font-medium" style={{ color: QUAD_COLOR[q] }}>
+                <span className="size-2.5 rounded-full" style={{ background: QUAD_COLOR[q] }} />
+                {QUAD[q]}
+              </span>
+            ))}
+          </div>
+        ) : (
         <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-medium">Sector rotation · four coloured quadrants</p>
@@ -170,9 +184,10 @@ export function SectorMatrix({
             ))}
           </div>
         </div>
-        <div className="h-80">
+        )}
+        <div className={compact ? "h-[188px]" : "h-80"}>
           <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart margin={{ top: 28, right: 120, left: 48, bottom: 28 }}>
+            <ScatterChart margin={compact ? { top: 10, right: 92, left: 4, bottom: 8 } : { top: 28, right: 120, left: 48, bottom: 28 }}>
               <ReferenceArea
                 x1={0}
                 x2={span.xMax}
@@ -256,6 +271,7 @@ export function SectorMatrix({
         </div>
       </Panel>
 
+      {compact ? null : (
       <Panel className="xl:col-span-2">
         <div className="mb-2 flex items-center justify-between gap-2">
           <p className="text-sm font-medium">
@@ -292,6 +308,7 @@ export function SectorMatrix({
           ))}
         </div>
       </Panel>
+      )}
       </div>
     </div>
   );

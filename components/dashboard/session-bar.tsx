@@ -40,7 +40,7 @@ export function SessionBar({
   const tokenTone = tokenLabel?.includes("expired") ? "text-rose-300" : tokenLabel?.match(/^token [0-2]h/) ? "text-amber-300" : "text-cyan-200";
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-slate-400">
       <span className={cn("font-medium uppercase tracking-wide", phaseTone)}>
         NSE {now.phase}
       </span>
