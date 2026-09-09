@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { HeatCell, SectorTile } from "@/lib/types";
+import type { HeatCell, RotationQuadrant, SectorTile } from "@/lib/types";
 import { Chg, EmaPills, Panel } from "@/components/dashboard/primitives";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   CartesianGrid,
+  ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
   Scatter,
@@ -16,12 +17,35 @@ import {
   YAxis,
 } from "recharts";
 
-const QUAD: Record<string, string> = {
+const QUAD: Record<RotationQuadrant, string> = {
   leading: "Leading",
   weakening: "Weakening",
   lagging: "Lagging",
   improving: "Improving",
 };
+
+const QUAD_COLOR: Record<RotationQuadrant, string> = {
+  leading: "#34d399",
+  improving: "#22d3ee",
+  weakening: "#fbbf24",
+  lagging: "#fb7185",
+};
+
+const QUADS: RotationQuadrant[] = ["leading", "improving", "weakening", "lagging"];
+
+function SectorDot(color: string) {
+  return function Shape(props: { cx?: number; cy?: number; payload?: { name?: string } }) {
+    const { cx = 0, cy = 0, payload } = props;
+    return (
+      <g>
+        <circle cx={cx} cy={cy} r={6} fill={color} stroke="#070b14" strokeWidth={1.6} />
+        <text x={cx + 9} y={cy + 4} fill="#e2e8f0" fontSize={11} fontWeight={500}>
+          {payload?.name ?? ""}
+        </text>
+      </g>
+    );
+  };
+}
 
 export function SectorMatrix({
   sectors,
@@ -42,6 +66,13 @@ export function SectorMatrix({
       })),
     [sectors],
   );
+  const span = useMemo(() => {
+    const xs = points.map((p) => Math.abs(p.x));
+    const ys = points.map((p) => Math.abs(p.y));
+    const x = Math.max(4, ...(xs.length ? xs : [4])) * 1.25;
+    const y = Math.max(2, ...(ys.length ? ys : [2])) * 1.25;
+    return { xMin: -x, xMax: x, yMin: -y, yMax: y };
+  }, [points]);
 
   return (
     <div className="space-y-4">
@@ -68,7 +99,10 @@ export function SectorMatrix({
               <p className="mt-1 font-mono text-lg tabular-nums">{inr(s.cmp, 0)}</p>
               <div className="mt-2 flex items-center justify-between">
                 <EmaPills emas={s.emas} />
-                <span className="text-[10px] text-muted-foreground">{QUAD[s.quadrant]}</span>
+                <span className="inline-flex items-center gap-1 text-[10px]" style={{ color: QUAD_COLOR[s.quadrant] }}>
+                  <span className="size-1.5 rounded-full" style={{ background: QUAD_COLOR[s.quadrant] }} />
+                  {QUAD[s.quadrant]}
+                </span>
               </div>
               <p className="mt-2 text-[11px] text-muted-foreground">
                 A/D {s.advances}/{s.declines} · CMF {s.cmf.toFixed(2)} · {s.turnoverShare}% turnover
@@ -119,31 +153,93 @@ export function SectorMatrix({
         <Panel className="xl:col-span-2">
           <p className="text-sm font-medium">Sector rotation · 4 quadrants</p>
           <p className="mb-2 text-[11px] text-muted-foreground">
-            X: 3M relative strength vs Nifty · Y: RS momentum
+            Dots are sectors. X = 3M RS vs Nifty · Y = RS momentum
           </p>
-          <div className="h-72">
+          <div className="mb-2 flex flex-wrap gap-3 text-[11px]">
+            {QUADS.map((q) => (
+              <span key={q} className="inline-flex items-center gap-1.5" style={{ color: QUAD_COLOR[q] }}>
+                <span className="size-2 rounded-full" style={{ background: QUAD_COLOR[q] }} />
+                {QUAD[q]}
+              </span>
+            ))}
+          </div>
+          <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <ScatterChart margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
+              <ScatterChart margin={{ top: 16, right: 88, left: 4, bottom: 12 }}>
+                <ReferenceArea
+                  x1={0}
+                  x2={span.xMax}
+                  y1={0}
+                  y2={span.yMax}
+                  fill={QUAD_COLOR.leading}
+                  fillOpacity={0.14}
+                  label={{ value: "Leading", fill: QUAD_COLOR.leading, position: "insideTopRight", fontSize: 11 }}
+                />
+                <ReferenceArea
+                  x1={span.xMin}
+                  x2={0}
+                  y1={0}
+                  y2={span.yMax}
+                  fill={QUAD_COLOR.improving}
+                  fillOpacity={0.14}
+                  label={{ value: "Improving", fill: QUAD_COLOR.improving, position: "insideTopLeft", fontSize: 11 }}
+                />
+                <ReferenceArea
+                  x1={span.xMin}
+                  x2={0}
+                  y1={span.yMin}
+                  y2={0}
+                  fill={QUAD_COLOR.lagging}
+                  fillOpacity={0.14}
+                  label={{ value: "Lagging", fill: QUAD_COLOR.lagging, position: "insideBottomLeft", fontSize: 11 }}
+                />
+                <ReferenceArea
+                  x1={0}
+                  x2={span.xMax}
+                  y1={span.yMin}
+                  y2={0}
+                  fill={QUAD_COLOR.weakening}
+                  fillOpacity={0.14}
+                  label={{ value: "Weakening", fill: QUAD_COLOR.weakening, position: "insideBottomRight", fontSize: 11 }}
+                />
                 <CartesianGrid stroke="rgba(255,255,255,0.08)" />
-                <XAxis type="number" dataKey="x" name="RS 3M" tick={{ fill: "#94a3b8", fontSize: 10 }} />
-                <YAxis type="number" dataKey="y" name="RS mom" tick={{ fill: "#94a3b8", fontSize: 10 }} />
-                <ReferenceLine x={0} stroke="#64748b" />
-                <ReferenceLine y={0} stroke="#64748b" />
+                <XAxis
+                  type="number"
+                  dataKey="x"
+                  name="RS 3M"
+                  domain={[span.xMin, span.xMax]}
+                  tick={{ fill: "#94a3b8", fontSize: 10 }}
+                />
+                <YAxis
+                  type="number"
+                  dataKey="y"
+                  name="RS mom"
+                  domain={[span.yMin, span.yMax]}
+                  tick={{ fill: "#94a3b8", fontSize: 10 }}
+                />
+                <ReferenceLine x={0} stroke="#94a3b8" />
+                <ReferenceLine y={0} stroke="#94a3b8" />
                 <Tooltip
                   cursor={{ strokeDasharray: "3 3" }}
                   contentStyle={{ background: "#0f172a", border: "1px solid #1e293b" }}
                   formatter={(v, name) => [Number(v).toFixed(2), String(name)]}
-                  labelFormatter={(_, p) => (p?.[0]?.payload as { name?: string })?.name ?? ""}
+                  labelFormatter={(_, p) => {
+                    const row = p?.[0]?.payload as { name?: string; quadrant?: string } | undefined;
+                    return row?.name ? `${row.name} · ${QUAD[row.quadrant as RotationQuadrant] ?? ""}` : "";
+                  }}
                 />
-                <Scatter data={points} fill="#22d3ee" />
+                {QUADS.map((q) => (
+                  <Scatter
+                    key={q}
+                    name={QUAD[q]}
+                    data={points.filter((p) => p.quadrant === q)}
+                    fill={QUAD_COLOR[q]}
+                    shape={SectorDot(QUAD_COLOR[q])}
+                    isAnimationActive={false}
+                  />
+                ))}
               </ScatterChart>
             </ResponsiveContainer>
-          </div>
-          <div className="mt-2 grid grid-cols-2 gap-1 text-[11px] text-muted-foreground">
-            <span>NW Improving</span>
-            <span className="text-right">NE Leading</span>
-            <span>SW Lagging</span>
-            <span className="text-right">SE Weakening</span>
           </div>
         </Panel>
       </div>

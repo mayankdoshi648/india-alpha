@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { PatternKind, StockRow } from "@/lib/types";
+import type { PatternKind, RotationQuadrant, StockRow } from "@/lib/types";
 import { PATTERN_LABEL, PATTERN_TONE, compact, fmtDate, inr } from "@/lib/format";
 import { Chg, EmaPills, Sparkline } from "@/components/dashboard/primitives";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,54 @@ const FILTERS: { id: PatternKind | "all" | "watch"; label: string }[] = [
   { id: "oversold_pullback", label: "Oversold" },
 ];
 
+const QUAD_COLOR: Record<RotationQuadrant, string> = {
+  leading: "#34d399",
+  improving: "#22d3ee",
+  weakening: "#fbbf24",
+  lagging: "#fb7185",
+};
+
+const HEADERS = [
+  "",
+  "Stock",
+  "N50",
+  "Cap",
+  "Sector",
+  "Sector RS",
+  "CMP",
+  "1D",
+  "1W",
+  "1M",
+  "RSI",
+  "RSI>MA",
+  "7D trend",
+  "Volume",
+  "Turnover",
+  "Vol 1D/9D",
+  "ATR %",
+  "Gap %",
+  "EMAs",
+  "Daily stack",
+  "Weekly stack",
+  "% vs 20",
+  "% vs 50",
+  "% vs 200",
+  "Pivot",
+  "10/20 cross",
+  "Delivery %",
+  "RS vs Nifty",
+  "OI build",
+  "52W pos",
+  "% below 52W H",
+  "% above 52W L",
+  "Stage 2",
+  "Days to earn",
+  "Prev earnings",
+  "Earn day",
+  "Next earnings",
+  "Setups",
+];
+
 export function UniverseTable({
   rows,
   watch,
@@ -34,10 +82,17 @@ export function UniverseTable({
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>("all");
   const [cap, setCap] = useState<"all" | "large" | "mid" | "small">("all");
+  const [sector, setSector] = useState("all");
+
+  const sectors = useMemo(
+    () => [...new Set(rows.map((r) => r.sector))].sort(),
+    [rows],
+  );
 
   const shown = useMemo(() => {
     return rows.filter((r) => {
       if (cap !== "all" && r.cap !== cap) return false;
+      if (sector !== "all" && r.sector !== sector) return false;
       if (filter === "watch" && !watch.has(r.symbol)) return false;
       if (filter !== "all" && filter !== "watch" && !r.patterns.includes(filter)) return false;
       if (q) {
@@ -48,7 +103,7 @@ export function UniverseTable({
       }
       return true;
     });
-  }, [rows, q, filter, cap, watch]);
+  }, [rows, q, filter, cap, sector, watch]);
 
   return (
     <div className="space-y-3">
@@ -91,6 +146,31 @@ export function UniverseTable({
           ))}
         </div>
       </div>
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          onClick={() => setSector("all")}
+          className={cn(
+            "rounded-full border px-2.5 py-1 text-[11px]",
+            sector === "all" ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-200" : "border-white/10 text-muted-foreground",
+          )}
+        >
+          All sectors
+        </button>
+        {sectors.map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => setSector(s)}
+            className={cn(
+              "rounded-full border px-2.5 py-1 text-[11px]",
+              sector === s ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-200" : "border-white/10 text-muted-foreground",
+            )}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
       <p className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>{shown.length} names in view</span>
         <button
@@ -104,36 +184,11 @@ export function UniverseTable({
         </button>
       </p>
       <div className="overflow-auto rounded-xl border border-white/8">
-        <table className="min-w-[1980px] w-full border-collapse text-left text-xs">
+        <table className="min-w-[2680px] w-full border-collapse text-left text-xs">
           <thead className="sticky top-0 z-10 bg-[#0b1424] text-[10px] tracking-wide text-muted-foreground uppercase">
             <tr>
-              {[
-                "",
-                "Stock",
-                "Cap",
-                "Sector",
-                "CMP",
-                "1D",
-                "1W",
-                "1M",
-                "RSI",
-                "7D trend",
-                "Volume",
-                "Vol 1D/9D",
-                "Gap %",
-                "EMAs",
-                "% vs 20",
-                "Delivery %",
-                "RS vs Nifty",
-                "OI build",
-                "% below 52W H",
-                "% above 52W L",
-                "Prev earnings",
-                "Earn day",
-                "Next earnings",
-                "Setups",
-              ].map((h) => (
-                <th key={h} className="border-b border-white/8 px-2 py-2 font-medium whitespace-nowrap">
+              {HEADERS.map((h) => (
+                <th key={h || "watch"} className="border-b border-white/8 px-2 py-2 font-medium whitespace-nowrap">
                   {h}
                 </th>
               ))}
@@ -166,8 +221,15 @@ export function UniverseTable({
                     <p className="max-w-40 truncate text-[10px] text-muted-foreground">Open note · {r.name}</p>
                   </button>
                 </td>
+                <td className="px-2 py-2">{r.nifty50 ? "Y" : ""}</td>
                 <td className="px-2 py-2 capitalize">{r.cap}</td>
                 <td className="px-2 py-2 whitespace-nowrap">{r.sector}</td>
+                <td className="px-2 py-2 whitespace-nowrap">
+                  <span className="inline-flex items-center gap-1 capitalize" style={{ color: QUAD_COLOR[r.sectorQuad] }}>
+                    <span className="size-1.5 rounded-full" style={{ background: QUAD_COLOR[r.sectorQuad] }} />
+                    {r.sectorQuad}
+                  </span>
+                </td>
                 <td className="px-2 py-2 font-mono tabular-nums">{inr(r.cmp)}</td>
                 <td className="px-2 py-2"><Chg value={r.change1d} /></td>
                 <td className="px-2 py-2"><Chg value={r.change1w} /></td>
@@ -175,19 +237,38 @@ export function UniverseTable({
                 <td className={cn("px-2 py-2 font-mono tabular-nums", r.rsi < 30 ? "text-lime-300" : r.rsi > 70 ? "text-rose-300" : "")}>
                   {r.rsi.toFixed(1)}
                 </td>
+                <td className="px-2 py-2">{r.rsiAboveMa ? "Yes" : "No"}</td>
                 <td className="px-2 py-2"><Sparkline values={r.spark} /></td>
                 <td className="px-2 py-2 font-mono tabular-nums">{compact(r.volume)}</td>
+                <td className="px-2 py-2 font-mono tabular-nums">{compact(r.turnover)}</td>
                 <td className={cn("px-2 py-2 font-mono tabular-nums", r.volSpike >= 1.5 && "text-cyan-300")}>
                   {r.volSpike.toFixed(2)}x
                 </td>
+                <td className="px-2 py-2 font-mono tabular-nums">{r.atrPct.toFixed(2)}</td>
                 <td className="px-2 py-2"><Chg value={r.gapPct} /></td>
                 <td className="px-2 py-2"><EmaPills emas={r.emas} /></td>
+                <td className="px-2 py-2 capitalize">{r.emaStack}</td>
+                <td className="px-2 py-2 capitalize">{r.weeklyStack}</td>
                 <td className="px-2 py-2"><Chg value={r.distFrom20Ema} /></td>
+                <td className="px-2 py-2"><Chg value={r.distFrom50} /></td>
+                <td className="px-2 py-2"><Chg value={r.distFrom200} /></td>
+                <td className="px-2 py-2">{r.abovePivot ? "Above" : "Below"}</td>
+                <td className="px-2 py-2">{r.bullishCross ? "Bullish" : "—"}</td>
                 <td className="px-2 py-2 font-mono tabular-nums">{r.deliveryPct.toFixed(1)}%</td>
                 <td className="px-2 py-2"><Chg value={r.rsNifty} /></td>
                 <td className="px-2 py-2 capitalize whitespace-nowrap">{r.oiBuild.replace("-", " ")}</td>
+                <td className="px-2 py-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-1.5 w-16 overflow-hidden rounded bg-white/10">
+                      <div className="h-full rounded bg-cyan-400" style={{ width: `${Math.min(100, Math.max(0, r.pos52w))}%` }} />
+                    </div>
+                    <span className="font-mono tabular-nums">{r.pos52w}</span>
+                  </div>
+                </td>
                 <td className="px-2 py-2 font-mono tabular-nums">{r.below52wHigh.toFixed(1)}%</td>
                 <td className="px-2 py-2 font-mono tabular-nums">{r.above52wLow.toFixed(1)}%</td>
+                <td className="px-2 py-2 font-mono tabular-nums">{r.stage2Score}/7</td>
+                <td className="px-2 py-2 font-mono tabular-nums">{r.daysToEarnings ?? "—"}</td>
                 <td className="px-2 py-2 whitespace-nowrap">{fmtDate(r.prevEarningDate)}</td>
                 <td className="px-2 py-2">
                   {r.earningsImpactPct === null ? "—" : <Chg value={r.earningsImpactPct} />}

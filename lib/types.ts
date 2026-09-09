@@ -192,6 +192,13 @@ export interface StockRow {
   oiBuild: OiBuild;
   rsNifty: number;
   chart: ChartPoint[];
+  atrPct: number;
+  turnover: number;
+  distFrom50: number;
+  distFrom200: number;
+  pos52w: number;
+  daysToEarnings: number | null;
+  sectorQuad: RotationQuadrant;
 }
 
 export interface OptionStrike {

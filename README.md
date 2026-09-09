@@ -48,7 +48,7 @@ NSE (no key): `allIndices`, `fiidiiTradeData`, `option-chain-indices`.
 6. **Nifty OI ladder** — call/put OI around ATM, call wall, put wall, IV skew.
 7. **EMA breadth gauges** — % of the universe above 10/20 (short), 50 (medium), 200 (long) on D/W/M.
 8. **Sector health** — sector tiles, constituent heatmap, 4-quadrant rotation.
-9. **Universe inspector** — watchlist, cap, sector, returns, RSI, sparkline, volume, delivery %, RS vs Nifty, OI build, EMAs, 52-week range, earnings, CSV export.
+9. **Universe inspector** — watchlist, Nifty 50 flag, cap, sector rotation quadrant, CMP, returns, RSI vs MA, volume, turnover, ATR, gap, EMA stack (daily/weekly), % vs 20/50/200, pivot, 10/20 cross, delivery %, RS vs Nifty, OI build, 52-week position, Stage 2, earnings, setups, sector filters, CSV export.
 10. **Stock drawer** — 80-session chart, delivery, RS, OI build, notes, watchlists.
 11. **Setup scanner** — Stage 2, breakouts, volume surge, VCP, divergences, pivot reclaim, oversold pullback.
 12. **Market breadth** — seven indicators with a 60-session drill-down.

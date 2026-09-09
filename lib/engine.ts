@@ -66,7 +66,7 @@ import type {
   UniverseId,
 } from "@/lib/types";
 
-const CACHE_VER = 5;
+const CACHE_VER = 6;
 const cache = new Map<string, { at: number; value: DashboardSnapshot }>();
 
 function overlayLast(bars: OhlcBar[], close: number, changePct?: number): OhlcBar[] {
@@ -514,6 +514,18 @@ export async function buildSnapshot(
         low: b.low,
         volume: b.volume,
       })),
+      atrPct: round(
+        ((bars.slice(-14).reduce((sum, b) => sum + (b.high - b.low), 0) / Math.min(14, bars.length)) /
+          lastBar.close) *
+          100,
+        2,
+      ),
+      turnover: round(lastBar.close * lastBar.volume, 0),
+      distFrom50: round(pct(ema50, lastBar.close), 2),
+      distFrom200: round(pct(ema200, lastBar.close), 2),
+      pos52w: high52 === low52 ? 50 : round(((lastBar.close - low52) / (high52 - low52)) * 100, 0),
+      daysToEarnings: Math.round((Date.parse(earn.next) - Date.parse(asOf)) / 86_400_000),
+      sectorQuad: sectors.find((x) => x.name === s.sector)?.quadrant ?? "lagging",
     };
     stocks.push(row);
     for (const d of detected) {
