@@ -69,7 +69,7 @@ export function ChartPatternBoard({
       {!shown.length ? (
         <p className="text-sm text-slate-500">No triangle / flag / wedge / H&amp;S setups on this tape and filter.</p>
       ) : (
-        <div className="grid gap-1.5 md:grid-cols-2">
+        <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
           {shown.map((h) => (
             <button
               key={`${h.symbol}-${h.kind}-${h.timeframe}`}
@@ -94,7 +94,7 @@ export function ChartPatternBoard({
                       {h.timeframe} · {h.role} · {h.status}
                     </span>
                   </div>
-                  <p className="mt-1 line-clamp-3 text-[12px] leading-snug text-slate-400">{h.rationale}</p>
+                  <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-slate-400">{h.rationale}</p>
                   <p className="mt-1 font-mono text-[11px] text-slate-500 tabular-nums">
                     buy/sell {inr(h.entry, 1)} · stop {inr(h.stop, 1)} · TP {inr(h.target, 1)} · {h.rr.toFixed(1)}R
                     {h.divergence ? ` · ${h.divergence.replaceAll("_", " ")} RSI` : ""} · vol {h.volX.toFixed(1)}x

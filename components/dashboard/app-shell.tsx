@@ -83,7 +83,7 @@ export function MarketDesk() {
       let painted = false;
       if (useBaked) {
         const baked = await fetch(`/data/${u}.json`, {
-          cache: "force-cache",
+          cache: "no-store",
           signal: AbortSignal.timeout(20_000),
         });
         if (baked.ok) {
@@ -367,6 +367,14 @@ export function MarketDesk() {
                   Nifty 500
                 </button>
               </div>
+              <button
+                type="button"
+                id="jump-breakout-patterns"
+                onClick={() => document.getElementById("breakout-patterns")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                className="inline-flex h-8 items-center gap-1 rounded-lg border border-amber-400/40 px-2.5 text-[13px] text-amber-200 hover:bg-amber-400/10"
+              >
+                Patterns
+              </button>
               <select
                 value={watch.active}
                 onChange={(e) =>
@@ -411,7 +419,7 @@ export function MarketDesk() {
           </div>
       </header>
 
-      <main className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-auto px-3 py-2.5 xl:overflow-hidden">
+      <main className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-auto px-3 py-2.5">
         {error ? (
           <Panel className="flex flex-wrap items-center gap-3 text-rose-300">
             <WifiOff className="size-4" />

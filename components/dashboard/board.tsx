@@ -339,8 +339,13 @@ export function DeskBoard({
   return (
     <div className="flex flex-1 flex-col gap-2.5 xl:min-h-0">
       <WatchStrip data={data} />
-      <Pane title="Breakout / breakdown · triangles, flags, wedges, H&S" className="xl:max-h-[30%] xl:min-h-[9rem]">
-        <ChartPatternBoard hits={data.chartPatterns ?? []} universe={data.universe} onOpen={onOpen} />
+      <Pane
+        title="Breakout / breakdown · triangles, flags, wedges, H&S"
+        className="shrink-0 border-amber-400/25 xl:max-h-[15.5rem]"
+      >
+        <div id="breakout-patterns">
+          <ChartPatternBoard hits={data.chartPatterns ?? []} universe={data.universe} onOpen={onOpen} />
+        </div>
       </Pane>
       <div className="grid grid-cols-1 gap-2.5 xl:min-h-0 xl:flex-1 xl:grid-cols-[20rem_minmax(0,1fr)_22rem] xl:grid-rows-[minmax(0,1fr)]">
         <div className="flex flex-col gap-2.5 xl:min-h-0">
