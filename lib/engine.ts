@@ -75,7 +75,7 @@ import type {
   UniverseStock,
 } from "@/lib/types";
 
-const CACHE_VER = 18;
+const CACHE_VER = 19;
 const cache = new Map<string, { at: number; value: DashboardSnapshot }>();
 
 export type SnapshotOpts = {
