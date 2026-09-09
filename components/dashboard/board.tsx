@@ -43,10 +43,22 @@ function Pane({
 
 export function WatchStrip({ data }: { data: DashboardSnapshot }) {
   const nifty = data.indices.find((i) => i.id === "nifty");
+  const nifty500 = data.indices.find((i) => i.id === "nifty500");
   const bank = data.indices.find((i) => i.id === "banknifty");
+  const lead =
+    data.universe === "nifty500" && nifty500
+      ? { k: "Nifty 500", v: inr(nifty500.cmp, 2), chg: nifty500.changePct }
+      : nifty
+        ? { k: "Nifty 50", v: inr(nifty.cmp, 2), chg: nifty.changePct }
+        : null;
   const cards = [
-    nifty ? { k: "Nifty 50", v: inr(nifty.cmp, 2), chg: nifty.changePct } : null,
+    lead,
     bank ? { k: "Bank Nifty", v: inr(bank.cmp, 2), chg: bank.changePct } : null,
+    data.universe === "nifty500" && nifty
+      ? { k: "Nifty 50", v: inr(nifty.cmp, 2), chg: nifty.changePct }
+      : nifty500
+        ? { k: "Nifty 500", v: inr(nifty500.cmp, 2), chg: nifty500.changePct }
+        : null,
     { k: "India VIX", v: data.derivatives.indiaVix.toFixed(2), chg: data.derivatives.indiaVixChangePct },
     { k: "Nifty PCR", v: data.derivatives.niftyPcr.toFixed(2), chg: null as number | null },
     {
@@ -58,7 +70,7 @@ export function WatchStrip({ data }: { data: DashboardSnapshot }) {
   ].filter(Boolean) as { k: string; v: string; chg: number | null }[];
 
   return (
-    <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+    <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-7">
       {cards.map((c) => {
         const up = (c.chg ?? 0) >= 0;
         return (
@@ -118,19 +130,20 @@ function heat(chg: number) {
 }
 
 function Mosaic({ rows, onOpen }: { rows: StockRow[]; onOpen: (s: string) => void }) {
-  const tape = rows.filter((r) => r.nifty50).slice(0, 50);
+  const tape = rows;
+  const dense = tape.length > 80;
   return (
-    <div className="grid grid-cols-5 gap-1">
+    <div className={cn("grid gap-1", dense ? "grid-cols-8 sm:grid-cols-10" : "grid-cols-5")}>
       {tape.map((r) => (
         <button
           key={r.symbol}
           type="button"
           id={`mosaic-${r.symbol}`}
           onClick={() => onOpen(r.symbol)}
-          className={cn("rounded-md px-1 py-1.5 text-left", heat(r.change1d))}
+          className={cn("rounded-md px-1 text-left", dense ? "py-1" : "py-1.5", heat(r.change1d))}
           title={`${r.name} ${signed(r.change1d)}%`}
         >
-          <p className="truncate font-mono text-[11px] font-semibold">{r.symbol}</p>
+          <p className={cn("truncate font-mono font-semibold", dense ? "text-[10px]" : "text-[11px]")}>{r.symbol}</p>
           <p className="font-mono text-[10px] tabular-nums">{signed(r.change1d)}%</p>
         </button>
       ))}
@@ -330,7 +343,7 @@ export function DeskBoard({
           <Pane title="Index tape" className="xl:max-h-[34%]">
             <IndexList tiles={data.indices} />
           </Pane>
-          <Pane title="Nifty 50 · 1D heat" className="xl:flex-1">
+          <Pane title={data.universe === "nifty500" ? `Nifty 500 · 1D heat · ${data.stocks.length}` : "Nifty 50 · 1D heat"} className="xl:flex-1">
             <Mosaic rows={data.stocks} onOpen={onOpen} />
           </Pane>
           <Pane title="Gainers & losers" className="xl:max-h-[28%]">
@@ -347,7 +360,7 @@ export function DeskBoard({
               <SectorMatrix sectors={data.sectors} heatmap={data.heatmap} compact />
             </DeskErrorBoundary>
           </Pane>
-          <Pane title="Universe" className="min-h-[420px] xl:flex-1 xl:min-h-0">
+          <Pane title={data.universe === "nifty500" ? `Universe · Nifty 500 · ${data.stocks.length}` : "Universe · Nifty 50"} className="min-h-[420px] xl:flex-1 xl:min-h-0">
             <UniverseTable
               key={data.universe}
               rows={data.stocks}

@@ -46,6 +46,9 @@ export function SessionBar({
       </span>
       <span className="font-mono tabular-nums">{now.clock}</span>
       <span>tape {data.asOf}</span>
+      <span className="text-cyan-200">
+        {data.universe === "nifty500" ? "Nifty 500" : "Nifty 50"} · {data.stocks.length} names
+      </span>
       <span>quotes {age || "—"} · {data.sources.quotes}</span>
       <span>F&O {data.sources.derivatives}</span>
       <span>flow {data.sources.flows}</span>

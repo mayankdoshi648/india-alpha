@@ -3,7 +3,11 @@ import type { ChartPoint, DashboardSnapshot, EmaStatus, StockFo } from "@/lib/ty
 export function withoutCharts(snap: DashboardSnapshot): DashboardSnapshot {
   return {
     ...snap,
-    stocks: snap.stocks.map((s) => ({ ...s, chart: [] })),
+    stocks: snap.stocks.map((s) => ({
+      ...s,
+      chart: [],
+      fo: s.fo ? { ...s.fo, ladder: [] } : null,
+    })),
   };
 }
 

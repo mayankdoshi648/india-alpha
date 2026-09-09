@@ -259,7 +259,7 @@ export function UniverseTable({
             className="pl-8"
           />
         </div>
-        <div className={cn("flex flex-wrap gap-1.5", embedded && "hidden")}>
+        <div className={cn("flex flex-wrap gap-1.5", embedded && rows.length <= 80 && "hidden")}>
           {(["all", "large", "mid", "small"] as const).map((c) => (
             <button
               key={c}

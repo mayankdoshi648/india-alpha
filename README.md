@@ -42,11 +42,13 @@ NSE (no key): `allIndices`, `fiidiiTradeData`, `option-chain-indices`, `option-c
 
 The desk is **one page**. The first paint is a light shell; the tape loads from `/api/market` so the page is not a 1MB HTML dump. Indices, mosaic, sector rotation, universe, alerts, setups, F&O and breadth sit together so you can watch without switching tabs. Configure / Dhan keys open a side panel.
 
-1. **Watch strip** — Nifty, Bank Nifty, VIX, PCR, A/D, FII.
-2. **Index tape + mosaic + gainers/losers** — left column.
-3. **Sector rotation + universe** — centre.
-4. **Alerts, swing setups (VCP / breakout), F&O (Nifty + stocks), EMA breadth** — right column.
+1. **Watch strip** — Nifty 50 or Nifty 500 (whichever group is selected), Bank Nifty, VIX, PCR, A/D, FII.
+2. **Index tape + mosaic + gainers/losers** — left column. The mosaic and movers follow the selected group.
+3. **Sector rotation + universe** — centre. The table lists every name in the selected group (50 or ~500).
+4. **Alerts, swing setups (VCP / breakout), F&O (Nifty + stocks), EMA breadth** — right column, scored on the same group.
 5. **Stock drawer** — click any name for chart, VCP contraction legs, breakout pivot/stop/1R/2R, stock option chain, PCR/IV and notes.
+
+Toggle **Nifty 50** / **Nifty 500** in the header. The whole desk recalculates: heat map, universe, breadth, alerts and swing setups. The choice is remembered in this browser.
 
 ## Equity swing: VCP and breakouts
 

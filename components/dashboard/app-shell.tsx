@@ -86,12 +86,17 @@ export function MarketDesk() {
           settings: s,
           dhan: creds.accessToken ? creds : undefined,
         }),
-        signal: AbortSignal.timeout(40_000),
+        signal: AbortSignal.timeout(u === "nifty500" ? 90_000 : 40_000),
       });
       const json = (await res.json()) as DashboardSnapshot & { error?: string };
       if (!res.ok) throw new Error(json.error || `Market API ${res.status}`);
       setData(json);
       setUniverse(json.universe ?? u);
+      try {
+        localStorage.setItem("imd-universe", json.universe ?? u);
+      } catch {
+        // ignore
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load the desk");
     } finally {
@@ -103,6 +108,7 @@ export function MarketDesk() {
   useEffect(() => {
     let nextSettings = DEFAULT_SETTINGS;
     let creds = EMPTY_DHAN;
+    let nextUniverse: UniverseId = "nifty50";
     try {
       const raw = localStorage.getItem("imd-watch");
       if (raw) setWatch({ ...EMPTY_WATCH, ...JSON.parse(raw) });
@@ -110,6 +116,11 @@ export function MarketDesk() {
       if (s) {
         nextSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(s) };
         setSettings(nextSettings);
+      }
+      const savedU = localStorage.getItem("imd-universe");
+      if (savedU === "nifty500") {
+        nextUniverse = "nifty500";
+        setUniverse("nifty500");
       }
       const d = localStorage.getItem("imd-dhan");
       if (d) {
@@ -122,7 +133,7 @@ export function MarketDesk() {
     } catch {
       // ignore corrupt localStorage
     }
-    void loadTape("nifty50", nextSettings, creds);
+    void loadTape(nextUniverse, nextSettings, creds);
     // First hydrate only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -291,7 +302,7 @@ export function MarketDesk() {
                   }}
                   className={`h-7 px-2.5 text-[12px] ${universe === "nifty50" ? "bg-cyan-400/20 text-cyan-100" : "text-muted-foreground hover:bg-white/5"}`}
                 >
-                  N50
+                  Nifty 50
                 </button>
                 <button
                   type="button"
@@ -303,7 +314,7 @@ export function MarketDesk() {
                   }}
                   className={`h-7 px-2.5 text-[12px] ${universe === "nifty500" ? "bg-cyan-400/20 text-cyan-100" : "text-muted-foreground hover:bg-white/5"}`}
                 >
-                  N500
+                  Nifty 500
                 </button>
               </div>
               <select

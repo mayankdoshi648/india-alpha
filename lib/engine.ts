@@ -72,7 +72,7 @@ import type {
   UniverseId,
 } from "@/lib/types";
 
-const CACHE_VER = 12;
+const CACHE_VER = 13;
 const cache = new Map<string, { at: number; value: DashboardSnapshot }>();
 
 function overlayLast(bars: OhlcBar[], close: number, changePct?: number): OhlcBar[] {
@@ -548,7 +548,10 @@ export async function buildSnapshot(
       vwapDist: round(pct(vwap(bars, 20), lastBar.close), 2),
       daysAbove20: runDaysAbove(closes, settings.emaShort),
       rv20: realizedVol(closes, 20),
-      fo: demoStockFo(s.symbol, lastBar.close, round(pct(prev.close, lastBar.close), 2), nextThursday(asOf)),
+      fo:
+        s.nifty50 || s.cap === "large" || s.avgVolume >= 1_500_000
+          ? demoStockFo(s.symbol, lastBar.close, round(pct(prev.close, lastBar.close), 2), nextThursday(asOf))
+          : null,
       vcp: detected.find((d) => d.kind === "vcp")?.swing ?? null,
       breakout: detected.find((d) => d.kind === "breakout")?.swing ?? null,
     };

@@ -1,4 +1,5 @@
 import type { CapBucket, UniverseId, UniverseStock } from "@/lib/types";
+import { NIFTY500_EXTRA } from "@/lib/nifty500-extra";
 
 type Row = [
   symbol: string,
@@ -192,6 +193,7 @@ const ROWS: Row[] = [
   ["NBCC", "NBCC", "Infrastructure", "small", 0, 0, 112, 9800000],
   ["IRCON", "IRCON International", "Infrastructure", "small", 0, 0, 168, 7200000],
   ["RVNL", "Rail Vikas Nigam", "Infrastructure", "mid", 0, 0, 348, 18000000],
+  ...NIFTY500_EXTRA,
 ];
 
 export const UNIVERSE: UniverseStock[] = ROWS.map((r) => ({
@@ -214,6 +216,7 @@ export function stocksFor(universe: UniverseId): UniverseStock[] {
 
 export const INDEX_META = [
   { id: "nifty", name: "Nifty 50", symbol: "NIFTY 50", nse: "NIFTY 50", dhanId: 13, segment: "IDX_I", base: 23635.1 },
+  { id: "nifty500", name: "Nifty 500", symbol: "NIFTY 500", nse: "NIFTY 500", dhanId: 0, segment: "IDX_I", base: 21840 },
   { id: "banknifty", name: "Bank Nifty", symbol: "NIFTY BANK", nse: "NIFTY BANK", dhanId: 25, segment: "IDX_I", base: 51240 },
   { id: "sensex", name: "Sensex", symbol: "SENSEX", nse: "SENSEX", dhanId: 51, segment: "IDX_I", base: 75577.58 },
   { id: "largecap", name: "Nifty 100", symbol: "NIFTY 100", nse: "NIFTY 100", dhanId: 17, segment: "IDX_I", base: 24180 },
