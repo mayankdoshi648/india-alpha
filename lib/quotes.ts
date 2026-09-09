@@ -1,4 +1,5 @@
 import { dhanConfigured, dhanSecurityMap, dhanSegmentOhlc, type DhanPx } from "@/lib/dhan";
+import { nseIndexStocks } from "@/lib/nse";
 import type { DataSource, UniverseStock } from "@/lib/types";
 
 export type Ltp = {
@@ -7,6 +8,7 @@ export type Ltp = {
   open?: number;
   high?: number;
   low?: number;
+  prevClose?: number;
 };
 
 /** NSE tickers that no longer match Yahoo's `.NS` symbol. */
@@ -137,15 +139,25 @@ function pxFromDhan(px: DhanPx): Ltp {
     open: px.open,
     high: px.high,
     low: px.low,
+    prevClose: px.prevClose,
   };
 }
 
-export async function fetchEquityLtps(members: UniverseStock[]): Promise<{
+function deskSymbol(nseSymbol: string): string {
+  if (nseSymbol === "TMPV") return "TATAMOTORS";
+  return nseSymbol;
+}
+
+export async function fetchEquityLtps(
+  members: UniverseStock[],
+  nseIndex: string = "NIFTY 50",
+): Promise<{
   bySymbol: Record<string, Ltp>;
   source: DataSource;
 }> {
   const bySymbol: Record<string, Ltp> = {};
   let source: DataSource = "demo";
+  const wanted = new Set(members.map((s) => s.symbol));
 
   if (dhanConfigured()) {
     try {
@@ -175,6 +187,32 @@ export async function fetchEquityLtps(members: UniverseStock[]): Promise<{
         if (px) bySymbol[s.symbol] = pxFromDhan(px);
       }
       if (Object.keys(bySymbol).length) source = "dhan";
+    } catch {
+      // NSE / Yahoo fill
+    }
+  }
+
+  const stillMissing = () => members.filter((s) => !bySymbol[s.symbol]).map((s) => s.symbol);
+
+  if (stillMissing().length) {
+    try {
+      const rows = await nseIndexStocks(nseIndex);
+      let hits = 0;
+      for (const row of rows) {
+        const symbol = deskSymbol(row.symbol);
+        if (!wanted.has(symbol) || bySymbol[symbol]) continue;
+        if (typeof row.lastPrice !== "number" || !Number.isFinite(row.lastPrice)) continue;
+        bySymbol[symbol] = {
+          last: row.lastPrice,
+          changePct: row.pChange,
+          open: row.open,
+          high: row.dayHigh,
+          low: row.dayLow,
+          prevClose: row.previousClose,
+        };
+        hits++;
+      }
+      if (source === "demo" && hits) source = "nse";
     } catch {
       // Yahoo fill
     }
