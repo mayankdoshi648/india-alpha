@@ -329,14 +329,6 @@ export function generateIndexPath(id: string, days: string[], endPrice: number):
   };
   const move = lastMove[id] ?? -0.004;
   closes[n - 2] = endPrice / (1 + move);
-  if (id === "nifty") {
-    closes[n - 2] = 23779.15;
-    closes[n - 1] = 23635.1;
-  }
-  if (id === "sensex") {
-    closes[n - 2] = 76132.81;
-    closes[n - 1] = 75577.58;
-  }
   return closes.map((c, i) => {
     const prev = closes[i - 1] ?? c;
     const vol = 1 + Math.abs(gaussian(rand)) * 0.006;

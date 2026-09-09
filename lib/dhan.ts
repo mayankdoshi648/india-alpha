@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
+import { indiaCalendarDate } from "@/lib/session";
 import type { DhanCredentials, OhlcBar } from "@/lib/types";
 
 const BASE = "https://api.dhan.co/v2";
@@ -353,9 +354,8 @@ export async function dhanHistorical(params: {
   const bars: OhlcBar[] = [];
   for (let i = 0; i < n; i++) {
     const ts = json.timestamp?.[i] ?? 0;
-    const date = ts > 10_000_000_000
-      ? new Date(ts).toISOString().slice(0, 10)
-      : new Date(ts * 1000).toISOString().slice(0, 10);
+    const ms = ts > 10_000_000_000 ? ts : ts * 1000;
+    const date = indiaCalendarDate(new Date(ms));
     bars.push({
       date,
       open: json.open?.[i] ?? 0,

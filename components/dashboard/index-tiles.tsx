@@ -2,7 +2,7 @@
 
 import type { IndexTile } from "@/lib/types";
 import { inr } from "@/lib/format";
-import { Chg, EmaPills, Panel } from "@/components/dashboard/primitives";
+import { Chg, EmaPills, Panel, Sparkline } from "@/components/dashboard/primitives";
 
 export function IndexTiles({ tiles }: { tiles: IndexTile[] }) {
   return (
@@ -25,6 +25,12 @@ export function IndexTiles({ tiles }: { tiles: IndexTile[] }) {
             <p className="relative mt-0.5 font-mono text-lg tracking-tight tabular-nums">
               {inr(t.cmp, 2)}
             </p>
+            <div className="relative mt-1 flex items-end justify-between gap-2">
+              <Sparkline values={t.spark ?? []} width={96} height={28} />
+              {t.asOf ? (
+                <p className="font-mono text-[10px] text-slate-500 tabular-nums">{t.asOf}</p>
+              ) : null}
+            </div>
             <div className="relative mt-1.5">
               <EmaPills emas={t.emas} />
             </div>
