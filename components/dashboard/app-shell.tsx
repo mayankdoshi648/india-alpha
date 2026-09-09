@@ -8,6 +8,7 @@ import { SessionBar } from "@/components/dashboard/session-bar";
 import { StockChart } from "@/components/dashboard/stock-chart";
 import { StockFoPanel } from "@/components/dashboard/stock-fo";
 import { SwingPanel } from "@/components/dashboard/swing-setup";
+import { ChartPatternMini } from "@/components/dashboard/chart-pattern-board";
 import { DeskBoard } from "@/components/dashboard/board";
 import { DeskErrorBoundary } from "@/components/dashboard/error-boundary";
 import { Panel, Drawer } from "@/components/dashboard/primitives";
@@ -486,6 +487,7 @@ export function MarketDesk() {
               <div id="swing-panel">
                 <SwingPanel vcp={liveSwing.vcp ?? row.vcp} breakout={liveSwing.breakout ?? row.breakout} />
               </div>
+              <ChartPatternMini hits={(data?.chartPatterns ?? []).filter((p) => p.symbol === row.symbol)} />
               <StockChart points={chart.length ? chart : row.chart ?? []} emas={row.emas} />
               {fo ? <StockFoPanel fo={fo} /> : null}
               <EmaPills emas={row.emas} />

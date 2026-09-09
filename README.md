@@ -47,10 +47,11 @@ NSE (no key): `allIndices`, `fiidiiTradeData`, `option-chain-indices`, `option-c
 The desk is **one page**. The first paint is a light shell; the tape loads from baked `/data/*.json` (or `/api/market` when Dhan keys or custom settings are in play) so the page is not a 1MB HTML dump. Indices, mosaic, sector rotation, universe, alerts, setups, F&O and breadth sit together so you can watch without switching tabs. Configure / Dhan keys open a side panel.
 
 1. **Watch strip** — Nifty 50 or Nifty 500 (whichever group is selected), Bank Nifty, VIX, PCR, A/D, FII.
-2. **Index tape + mosaic + gainers/losers** — left column. The mosaic and movers follow the selected group.
-3. **Sector rotation + universe** — centre. The table lists every name in the selected group (50 or ~500).
-4. **Alerts, swing setups (VCP / breakout), F&O (Nifty + stocks), EMA breadth** — right column, scored on the same group.
-5. **Stock drawer** — click any name for chart, VCP contraction legs, breakout pivot/stop/1R/2R, stock option chain, PCR/IV and notes.
+2. **Breakout / breakdown** — triangles, flags, wedges, H&S and double/triple on daily, weekly and monthly bars, with volume/RSI/divergence rationale.
+3. **Index tape + mosaic + gainers/losers** — left column. The mosaic and movers follow the selected group.
+4. **Sector rotation + universe** — centre. The table lists every name in the selected group (50 or ~500).
+5. **Alerts, swing setups (VCP / breakout), F&O (Nifty + stocks), EMA breadth** — right column, scored on the same group.
+6. **Stock drawer** — click any name for chart, VCP contraction legs, breakout pivot/stop/1R/2R, chart-pattern rationale, stock option chain, PCR/IV and notes.
 
 Toggle **Nifty 50** / **Nifty 500** in the header. The whole desk recalculates: heat map, universe, breadth, alerts and swing setups. The choice is remembered in this browser.
 
@@ -77,6 +78,14 @@ A VCP is a Stage 2 name that coils through **successively tighter pullbacks** as
 - A **throwback** to the 10 EMA after a valid break is a second entry, not a failure. A close back inside the base is a fail — stand aside.
 
 Configure **Breakout vol** and **Retrace %** in the side panel. The drawer shows the contraction table, checklist ticks, and the next action in plain language.
+
+## Chart patterns (breakout / breakdown)
+
+A separate **Breakout / breakdown** strip scans the selected universe (Nifty 50 or Nifty 500) on **daily, weekly and monthly** bars for the classic geometries: ascending / descending / symmetrical triangles, bull and bear flags, rising / falling wedges, head-and-shoulders and inverse, double and triple tops/bottoms.
+
+Each name lists the pattern, timeframe, whether it is continuation or reversal, and a trade rationale: volume on the break, RSI, bullish/bearish (or hidden) divergence, plus entry / stop / measured-move target from the pattern height. Filter by timeframe and long vs short. Click a row to open the stock drawer.
+
+This is a scanner, not a broker order.
 
 ## Open on a phone or another laptop
 

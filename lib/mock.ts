@@ -34,6 +34,176 @@ function gaussian(rand: () => number): number {
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
 
+const SKIP_CHART_SEED = new Set([
+  "BEL", "HAL", "MAXHEALTH", "MAZDOCK", "TRENT", "TITAN", "PERSISTENT", "POLYCAB",
+  "SOLARINDS", "KAYNES", "RVNL", "CIPLA", "SUNPHARMA", "DABUR",
+  "HDFCBANK", "AXISBANK", "KOTAKBANK", "TVSMOTOR",
+]);
+
+const CHART_SEED: Record<string, string> = {
+  BHARTIARTL: "asc_tri",
+  ITC: "double_bottom",
+  ONGC: "bull_flag",
+  MARUTI: "fall_wedge",
+  SBIN: "desc_tri",
+  INFY: "hs",
+  HINDUNILVR: "rise_wedge",
+  POWERGRID: "sym_tri",
+  COALINDIA: "triple_bottom",
+  NTPC: "inv_hs",
+  JSWSTEEL: "bear_flag",
+  ULTRACEMCO: "double_top",
+  NESTLEIND: "asc_tri",
+  GRASIM: "bull_flag",
+  ADANIENT: "desc_tri",
+  "BAJAJ-AUTO": "double_bottom",
+};
+
+const HASH_KINDS = [
+  "asc_tri", "desc_tri", "sym_tri", "bull_flag", "bear_flag",
+  "rise_wedge", "fall_wedge", "hs", "inv_hs", "double_top", "double_bottom", "triple_bottom",
+];
+
+function paintChartSeed(symbol: string, out: OhlcBar[]) {
+  if (SKIP_CHART_SEED.has(symbol)) return;
+  const kind = CHART_SEED[symbol] ?? (hash(symbol) % 19 === 0 ? HASH_KINDS[hash(symbol) % HASH_KINDS.length] : null);
+  if (!kind) return;
+  const n = out.length;
+  const base = out[Math.max(0, n - 55)].close;
+
+  const set = (i: number, close: number, high: number, low: number, vol = 0.7) => {
+    if (i < 0 || i >= n) return;
+    const b = out[i];
+    b.close = close;
+    b.open = (high + low) / 2;
+    b.high = Math.max(high, close, b.open);
+    b.low = Math.min(low, close, b.open);
+    b.volume = Math.max(1, Math.round(b.volume * vol));
+  };
+
+  const peak = (i: number, px: number) => {
+    for (let k = -3; k <= 3; k++) {
+      const j = i + k;
+      if (j < 0 || j >= n - 1) continue;
+      const d = Math.abs(k);
+      const c = px * (1 - d * 0.014);
+      set(j, c, k === 0 ? px : c * 1.004, c * 0.988, k === 0 ? 0.85 : 0.55);
+    }
+  };
+  const trough = (i: number, px: number) => {
+    for (let k = -3; k <= 3; k++) {
+      const j = i + k;
+      if (j < 0 || j >= n - 1) continue;
+      const d = Math.abs(k);
+      const c = px * (1 + d * 0.014);
+      set(j, c, c * 1.012, k === 0 ? px : c * 0.996, k === 0 ? 0.85 : 0.55);
+    }
+  };
+
+  if (kind === "asc_tri") {
+    const R = base * 1.1;
+    trough(n - 38, R * 0.88);
+    peak(n - 32, R);
+    trough(n - 26, R * 0.92);
+    peak(n - 20, R);
+    trough(n - 12, R * 0.96);
+    peak(n - 8, R * 0.998);
+    set(n - 1, R * 1.016, R * 1.024, R * 0.996, 2.5);
+  } else if (kind === "desc_tri") {
+    const S = base * 0.94;
+    peak(n - 38, S * 1.14);
+    trough(n - 32, S);
+    peak(n - 26, S * 1.1);
+    trough(n - 20, S);
+    peak(n - 12, S * 1.05);
+    trough(n - 8, S * 1.002);
+    set(n - 1, S * 0.982, S * 1.004, S * 0.97, 2.4);
+  } else if (kind === "sym_tri") {
+    peak(n - 36, base * 1.09);
+    trough(n - 30, base * 0.91);
+    peak(n - 22, base * 1.05);
+    trough(n - 16, base * 0.95);
+    peak(n - 10, base * 1.02);
+    trough(n - 7, base * 0.98);
+    set(n - 1, base * 1.03, base * 1.045, base * 0.995, 2.2);
+  } else if (kind === "bull_flag") {
+    const start = base;
+    for (let i = n - 22; i < n - 10; i++) {
+      const t = (i - (n - 22)) / 11;
+      const c = start * (1 + t * 0.18);
+      set(i, c, c * 1.01, c * 0.99, 1.35);
+    }
+    const flagTop = start * 1.18;
+    for (let i = n - 10; i < n - 1; i++) {
+      const t = (i - (n - 10)) / 8;
+      const c = flagTop * (1 - t * 0.04);
+      set(i, c, c * 1.006, c * 0.992, 0.5);
+    }
+    set(n - 1, flagTop * 1.012, flagTop * 1.02, flagTop * 0.97, 2.4);
+  } else if (kind === "bear_flag") {
+    const start = base;
+    for (let i = n - 22; i < n - 10; i++) {
+      const t = (i - (n - 22)) / 11;
+      const c = start * (1 - t * 0.18);
+      set(i, c, c * 1.01, c * 0.99, 1.35);
+    }
+    const flagBot = start * 0.82;
+    for (let i = n - 10; i < n - 1; i++) {
+      const t = (i - (n - 10)) / 8;
+      const c = flagBot * (1 + t * 0.04);
+      set(i, c, c * 1.008, c * 0.994, 0.5);
+    }
+    set(n - 1, flagBot * 0.988, flagBot * 1.03, flagBot * 0.97, 2.4);
+  } else if (kind === "fall_wedge") {
+    peak(n - 40, base * 1.04);
+    trough(n - 33, base * 0.9);
+    peak(n - 26, base * 0.99);
+    trough(n - 19, base * 0.87);
+    peak(n - 12, base * 0.945);
+    trough(n - 7, base * 0.855);
+    set(n - 1, base * 0.97, base * 0.985, base * 0.9, 2.2);
+  } else if (kind === "rise_wedge") {
+    trough(n - 40, base * 0.9);
+    peak(n - 33, base * 1.04);
+    trough(n - 26, base * 0.95);
+    peak(n - 19, base * 1.07);
+    trough(n - 12, base * 0.99);
+    peak(n - 7, base * 1.09);
+    set(n - 1, base * 0.975, base * 1.02, base * 0.96, 2.2);
+  } else if (kind === "hs") {
+    peak(n - 42, base * 1.06);
+    trough(n - 34, base * 0.97);
+    peak(n - 26, base * 1.16);
+    trough(n - 18, base * 0.97);
+    peak(n - 10, base * 1.055);
+    set(n - 1, base * 0.95, base * 0.985, base * 0.93, 2.4);
+  } else if (kind === "inv_hs") {
+    trough(n - 42, base * 0.94);
+    peak(n - 34, base * 1.03);
+    trough(n - 26, base * 0.84);
+    peak(n - 18, base * 1.03);
+    trough(n - 10, base * 0.945);
+    set(n - 1, base * 1.05, base * 1.07, base * 1.01, 2.4);
+  } else if (kind === "double_top") {
+    peak(n - 28, base * 1.1);
+    trough(n - 18, base * 0.97);
+    peak(n - 10, base * 1.098);
+    set(n - 1, base * 0.955, base * 0.99, base * 0.94, 2.3);
+  } else if (kind === "double_bottom") {
+    trough(n - 28, base * 0.9);
+    peak(n - 18, base * 1.03);
+    trough(n - 10, base * 0.902);
+    set(n - 1, base * 1.045, base * 1.06, base * 1.0, 2.3);
+  } else if (kind === "triple_bottom") {
+    trough(n - 36, base * 0.9);
+    peak(n - 28, base * 1.02);
+    trough(n - 20, base * 0.902);
+    peak(n - 14, base * 1.02);
+    trough(n - 8, base * 0.901);
+    set(n - 1, base * 1.04, base * 1.055, base * 0.995, 2.3);
+  }
+}
+
 function applyPattern(symbol: string, bars: OhlcBar[]): OhlcBar[] {
   const out = bars.map((b) => ({ ...b }));
   const n = out.length;
@@ -115,6 +285,8 @@ function applyPattern(symbol: string, bars: OhlcBar[]): OhlcBar[] {
       bar.close *= 1 + i * 0.0018;
     });
   }
+
+  paintChartSeed(symbol, out);
 
   for (const b of out) {
     b.open = Number(b.open.toFixed(2));

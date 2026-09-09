@@ -21,6 +21,7 @@ import {
   vwap,
 } from "@/lib/indicators";
 import { detectPatterns, stage2Checklist } from "@/lib/patterns";
+import { detectChartPatterns } from "@/lib/chart-patterns";
 import {
   demoDelivery,
   demoFlows,
@@ -56,6 +57,7 @@ import { nextThursday } from "@/lib/fno";
 import type {
   BreadthCircle,
   BreadthPoint,
+  ChartPatternHit,
   DashboardSnapshot,
   DataSource,
   DeskAlert,
@@ -73,7 +75,7 @@ import type {
   UniverseStock,
 } from "@/lib/types";
 
-const CACHE_VER = 15;
+const CACHE_VER = 16;
 const cache = new Map<string, { at: number; value: DashboardSnapshot }>();
 
 export type SnapshotOpts = {
@@ -116,7 +118,7 @@ function scoreMember(input: {
   settings: StrategySettings;
   asOf: string;
   sectorQuad: SectorTile["quadrant"];
-}): { row: StockRow; hits: PatternHit[] } {
+}): { row: StockRow; hits: PatternHit[]; chartHits: ChartPatternHit[] } {
   const { s, bars, niftyCloses, niftyClose, settings, asOf, sectorQuad } = input;
   const closes = bars.map((b) => b.close);
   const lastBar = last(bars);
@@ -244,7 +246,15 @@ function scoreMember(input: {
       swing: d.swing,
     });
   }
-  return { row, hits };
+  const chartHits: ChartPatternHit[] = detectChartPatterns(bars, settings).map((d) => ({
+    ...d,
+    symbol: s.symbol,
+    name: s.name,
+    sector: s.sector,
+    cmp: row.cmp,
+    change1d: row.change1d,
+  }));
+  return { row, hits, chartHits };
 }
 
 function tileFromBars(id: string, name: string, symbol: string, bars: OhlcBar[], settings: StrategySettings): IndexTile {
@@ -609,9 +619,10 @@ export async function buildSnapshot(
 
   const stocks: StockRow[] = [];
   const patterns: PatternHit[] = [];
+  const chartPatterns: ChartPatternHit[] = [];
 
   for (const s of members) {
-    const { row, hits } = scoreMember({
+    const { row, hits, chartHits } = scoreMember({
       s,
       bars: stockBars.get(s.symbol)!,
       niftyCloses,
@@ -622,9 +633,16 @@ export async function buildSnapshot(
     });
     stocks.push(row);
     patterns.push(...hits);
+    chartPatterns.push(...chartHits);
   }
 
   patterns.sort((a, b) => b.score - a.score);
+  const triggered = chartPatterns.filter((h) => h.status !== "forming");
+  const forming = chartPatterns.filter((h) => h.status === "forming" && h.score >= 74 && h.volX >= 1.15);
+  chartPatterns.length = 0;
+  chartPatterns.push(...triggered, ...forming);
+  chartPatterns.sort((a, b) => b.score - a.score);
+  chartPatterns.splice(universe === "nifty500" ? 80 : 40);
 
   const history: BreadthPoint[] = [];
   let adLine = 0;
@@ -773,6 +791,7 @@ export async function buildSnapshot(
     heatmap,
     stocks,
     patterns,
+    chartPatterns,
     breadth: {
       advancing,
       declining,
