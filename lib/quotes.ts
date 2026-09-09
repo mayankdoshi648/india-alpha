@@ -1,4 +1,4 @@
-import { dhanConfigured, dhanLtp } from "@/lib/dhan";
+import { dhanConfigured, dhanLtp, dhanSecurityMap } from "@/lib/dhan";
 import type { DataSource, UniverseStock } from "@/lib/types";
 
 export type Ltp = { last: number; changePct?: number };
@@ -124,10 +124,23 @@ export async function fetchEquityLtps(members: UniverseStock[]): Promise<{
 
   if (dhanConfigured()) {
     try {
-      const ids = members.map((s) => s.securityId).filter((id) => id > 0);
+      const idBySymbol = new Map<string, number>();
+      try {
+        const scrips = await dhanSecurityMap();
+        for (const s of members) {
+          const id = s.securityId || scrips.get(s.symbol) || scrips.get(YAHOO_ALIAS[s.symbol] ?? "") || 0;
+          if (id > 0) idBySymbol.set(s.symbol, id);
+        }
+      } catch {
+        for (const s of members) {
+          if (s.securityId > 0) idBySymbol.set(s.symbol, s.securityId);
+        }
+      }
+      const ids = [...new Set(idBySymbol.values())];
       const ltp = ids.length ? await dhanLtp(ids) : {};
       for (const s of members) {
-        const px = ltp[String(s.securityId)];
+        const id = idBySymbol.get(s.symbol);
+        const px = id ? ltp[String(id)] : undefined;
         if (typeof px === "number") bySymbol[s.symbol] = { last: px };
       }
       if (Object.keys(bySymbol).length) source = "dhan";
