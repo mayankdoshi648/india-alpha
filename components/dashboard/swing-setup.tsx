@@ -108,7 +108,7 @@ function Card({ setup }: { setup: SwingSetup }) {
         <Meta k="Base days" v={`${setup.baseDays}d`} />
       </div>
 
-      {setup.checklist.length ? (
+      {setup.checklist?.length ? (
         <ul className="space-y-1">
           {setup.checklist.map((c) => (
             <li key={c.label} className="flex items-start gap-1.5 text-[12px] leading-snug">
@@ -149,6 +149,7 @@ export function SwingPanel({
   if (!vcp && !breakout) {
     return (
       <div className="space-y-1.5 rounded-xl border border-white/10 px-3 py-2">
+        <p className="text-[11px] tracking-[0.16em] text-cyan-400/80 uppercase">Equity swing</p>
         <p className="text-sm text-slate-400">No VCP coil or base breakout on this name.</p>
         <p className="text-[12px] leading-snug text-slate-500">
           VCP: successive pullbacks that get shallower (e.g. 18% → 10% → 5%), volume dry-up, then a buy stop a tick above the last contraction high. Breakout: 55-day high as pivot, base under ~22% deep, volume ≥ 1.5× on the break, stop under the handle. Do not chase if price is &gt;8% above the 10 EMA — wait for a throwback.
@@ -157,7 +158,7 @@ export function SwingPanel({
     );
   }
   return (
-    <div className="space-y-2">
+    <div id="swing-setup-cards" className="space-y-2">
       {vcp ? <Card setup={vcp} /> : null}
       {breakout ? <Card setup={breakout} /> : null}
     </div>

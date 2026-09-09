@@ -17,6 +17,8 @@ export function stockChartPayload(
   fo: StockFo | null;
   cmp: number;
   change1d: number;
+  vcp: DashboardSnapshot["stocks"][number]["vcp"];
+  breakout: DashboardSnapshot["stocks"][number]["breakout"];
 } | null {
   const row = snap.stocks.find((s) => s.symbol === symbol);
   if (!row) return null;
@@ -27,5 +29,7 @@ export function stockChartPayload(
     fo: row.fo,
     cmp: row.cmp,
     change1d: row.change1d,
+    vcp: row.vcp,
+    breakout: row.breakout,
   };
 }

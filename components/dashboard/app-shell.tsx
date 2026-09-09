@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ChartPoint, DashboardSnapshot, DhanCredentials, StockFo, StrategySettings, UniverseId } from "@/lib/types";
+import type { ChartPoint, DashboardSnapshot, DhanCredentials, StockFo, StrategySettings, SwingSetup, UniverseId } from "@/lib/types";
 import { DEFAULT_SETTINGS, STRATEGY_TEMPLATES } from "@/lib/settings";
 import { SettingsPanel } from "@/components/dashboard/settings-panel";
 import { SessionBar } from "@/components/dashboard/session-bar";
@@ -56,6 +56,10 @@ export function MarketDesk() {
   const [openSymbol, setOpenSymbol] = useState<string | null>(null);
   const [chart, setChart] = useState<ChartPoint[]>([]);
   const [liveFo, setLiveFo] = useState<StockFo | null>(null);
+  const [liveSwing, setLiveSwing] = useState<{ vcp: SwingSetup | null; breakout: SwingSetup | null }>({
+    vcp: null,
+    breakout: null,
+  });
   const [dhan, setDhan] = useState<DhanCredentials>(EMPTY_DHAN);
   const [dhanBusy, setDhanBusy] = useState(false);
   const [dhanStatus, setDhanStatus] = useState<string | null>(null);
@@ -128,11 +132,13 @@ export function MarketDesk() {
     if (!openSymbol) {
       setChart([]);
       setLiveFo(null);
+      setLiveSwing({ vcp: null, breakout: null });
       return;
     }
     const existing = data?.stocks.find((s) => s.symbol === openSymbol);
     if (existing?.chart?.length) setChart(existing.chart);
     setLiveFo(existing?.fo ?? null);
+    setLiveSwing({ vcp: existing?.vcp ?? null, breakout: existing?.breakout ?? null });
     let cancelled = false;
     void fetch(`/api/stock?symbol=${encodeURIComponent(openSymbol)}&universe=${universe}`, {
       signal: AbortSignal.timeout(15_000),
@@ -141,10 +147,13 @@ export function MarketDesk() {
         : undefined,
     })
       .then((r) => r.json())
-      .then((json: { chart?: ChartPoint[]; fo?: StockFo | null }) => {
+      .then((json: { chart?: ChartPoint[]; fo?: StockFo | null; vcp?: SwingSetup | null; breakout?: SwingSetup | null }) => {
         if (cancelled) return;
         if (json.chart?.length) setChart(json.chart);
         if (json.fo) setLiveFo(json.fo);
+        if (json.vcp !== undefined || json.breakout !== undefined) {
+          setLiveSwing({ vcp: json.vcp ?? existing?.vcp ?? null, breakout: json.breakout ?? existing?.breakout ?? null });
+        }
       })
       .catch(() => {
         if (!cancelled) setChart(existing?.chart ?? []);
@@ -414,8 +423,10 @@ export function MarketDesk() {
                 <p className="font-mono text-3xl tabular-nums">{inr(row.cmp)}</p>
                 <Chg value={row.change1d} />
               </div>
+              <div id="swing-panel">
+                <SwingPanel vcp={liveSwing.vcp ?? row.vcp} breakout={liveSwing.breakout ?? row.breakout} />
+              </div>
               <StockChart points={chart.length ? chart : row.chart ?? []} emas={row.emas} />
-              <SwingPanel vcp={row.vcp} breakout={row.breakout} />
               {fo ? <StockFoPanel fo={fo} /> : null}
               <EmaPills emas={row.emas} />
               <div className="flex flex-wrap gap-1">
