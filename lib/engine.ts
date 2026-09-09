@@ -1,6 +1,8 @@
 import {
+  betaVs,
   chaikinMoneyFlow,
   classicPivot,
+  consecutiveStreak,
   crossedUp,
   ema,
   emaStatuses,
@@ -12,9 +14,11 @@ import {
   resample,
   round,
   rsi,
+  runDaysAbove,
   sma,
   stackAlignment,
   valueAt,
+  vwap,
 } from "@/lib/indicators";
 import { detectPatterns, stage2Checklist } from "@/lib/patterns";
 import {
@@ -66,7 +70,7 @@ import type {
   UniverseId,
 } from "@/lib/types";
 
-const CACHE_VER = 6;
+const CACHE_VER = 7;
 const cache = new Map<string, { at: number; value: DashboardSnapshot }>();
 
 function overlayLast(bars: OhlcBar[], close: number, changePct?: number): OhlcBar[] {
@@ -526,6 +530,22 @@ export async function buildSnapshot(
       pos52w: high52 === low52 ? 50 : round(((lastBar.close - low52) / (high52 - low52)) * 100, 0),
       daysToEarnings: Math.round((Date.parse(earn.next) - Date.parse(asOf)) / 86_400_000),
       sectorQuad: sectors.find((x) => x.name === s.sector)?.quadrant ?? "lagging",
+      change3m: round(pct(valueAt(closes, 63), lastBar.close), 2),
+      dayHigh: round(lastBar.high, 2),
+      dayLow: round(lastBar.low, 2),
+      rangePos:
+        lastBar.high === lastBar.low
+          ? 50
+          : round(((lastBar.close - lastBar.low) / (lastBar.high - lastBar.low)) * 100, 0),
+      avgVolume: round(volAvg, 0),
+      beta: betaVs(closes, niftyCloses, 60),
+      streak: consecutiveStreak(closes),
+      cmf: round(chaikinMoneyFlow(bars, settings.cmfPeriod), 3),
+      high52: round(high52, 2),
+      low52: round(low52, 2),
+      vwapDist: round(pct(vwap(bars, 20), lastBar.close), 2),
+      daysAbove20: runDaysAbove(closes, settings.emaShort),
+      rv20: realizedVol(closes, 20),
     };
     stocks.push(row);
     for (const d of detected) {

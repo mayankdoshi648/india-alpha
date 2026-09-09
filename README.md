@@ -47,9 +47,9 @@ NSE (no key): `allIndices`, `fiidiiTradeData`, `option-chain-indices`.
 5. **Institutional F&O radar** — FII/DII net flow, India VIX regime, Nifty PCR, max pain.
 6. **Nifty OI ladder** — call/put OI around ATM, call wall, put wall, IV skew.
 7. **EMA breadth gauges** — % of the universe above 10/20 (short), 50 (medium), 200 (long) on D/W/M.
-8. **Sector health** — sector tiles, constituent heatmap, 4-quadrant rotation.
-9. **Universe inspector** — watchlist, Nifty 50 flag, cap, sector rotation quadrant, CMP, returns, RSI vs MA, volume, turnover, ATR, gap, EMA stack (daily/weekly), % vs 20/50/200, pivot, 10/20 cross, delivery %, RS vs Nifty, OI build, 52-week position, Stage 2, earnings, setups, sector filters, CSV export.
-10. **Stock drawer** — 80-session chart, delivery, RS, OI build, notes, watchlists.
+8. **Sector health** — sector tiles, constituent heatmap, and a four-colour rotation map. Each sector is a named coloured dot: emerald leading, cyan improving, amber weakening, rose lagging.
+9. **Universe inspector** — summary counts by rotation colour, then a full tape: Nifty 50 flag, cap, sector, day high/low and range position, 1D/1W/1M/3M, streak, beta vs Nifty, RSI vs MA, volume vs 20d average, turnover, ATR, 20d realized vol, CMF, gap, distance from VWAP, EMA stack (daily/weekly), days above 20 EMA, % vs 20/50/200, pivot, 10/20 cross, delivery %, RS vs Nifty, OI build, 52-week high/low/position, Stage 2, earnings, setups. Filter by sector or rotation colour and export CSV.
+10. **Stock drawer** — 80-session chart, delivery, RS, OI build, beta, VWAP, notes, watchlists.
 11. **Setup scanner** — Stage 2, breakouts, volume surge, VCP, divergences, pivot reclaim, oversold pullback.
 12. **Market breadth** — seven indicators with a 60-session drill-down.
 13. **Settings** — EMA/RSI/volume/breakout templates plus on-page Dhan keys.

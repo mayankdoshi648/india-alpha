@@ -415,7 +415,7 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
               id="sectors"
               kicker="Section 04"
               title="Sector health matrix and heatmap"
-              subtitle="Sector tiles, constituent heatmap, and a four-quadrant rotation map. Each sector is a coloured dot with its name: emerald leading, cyan improving, amber weakening, rose lagging."
+              subtitle="Sector tiles, a four-colour rotation map (emerald leading, cyan improving, amber weakening, rose lagging) with named sector dots, and a constituent heatmap."
             >
               <SectorMatrix sectors={data.sectors} heatmap={data.heatmap} />
             </Section>
@@ -423,7 +423,7 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
               id="universe"
               kicker="Section 05"
               title="Universe component breadth inspector"
-              subtitle="Every name in the selected universe: Nifty 50 flag, cap, sector rotation quadrant, CMP, returns, RSI vs its MA, volume, turnover, ATR, gap, EMA stack, distance from 20/50/200, pivot, 10/20 cross, delivery, RS vs Nifty, OI build, 52-week position, Stage 2, earnings and setups. Filter by sector and export CSV."
+              subtitle="Tape for every name: day range, 1D/1W/1M/3M, streak, beta, RSI, volume vs average, turnover, ATR, realized vol, CMF, VWAP, EMA stack, days above 20, % vs 20/50/200, pivot, delivery, RS vs Nifty, OI build, 52-week high/low, Stage 2, earnings and setups. Filter by sector rotation colour and export CSV."
             >
               <UniverseTable
                 key={data.universe}
@@ -492,11 +492,23 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
                 <Meta k="RSI(14)" v={row.rsi.toFixed(1)} />
                 <Meta k="Vol spike" v={`${row.volSpike}x`} />
                 <Meta k="% vs 20 EMA" v={`${row.distFrom20Ema}%`} />
+                <Meta k="% vs 50 EMA" v={`${row.distFrom50}%`} />
+                <Meta k="% vs 200 EMA" v={`${row.distFrom200}%`} />
                 <Meta k="RS vs Nifty 1M" v={`${row.rsNifty}%`} />
                 <Meta k="Delivery" v={`${row.deliveryPct}%`} />
                 <Meta k="OI build" v={row.oiBuild.replace("-", " ")} />
-                <Meta k="Below 52W high" v={`${row.below52wHigh}%`} />
+                <Meta k="ATR %" v={row.atrPct.toFixed(2)} />
+                <Meta k="52W pos" v={`${row.pos52w}`} />
+                <Meta k="Stage 2" v={`${row.stage2Score}/7`} />
                 <Meta k="EMA stack" v={row.emaStack} />
+                <Meta k="3M %" v={`${row.change3m}%`} />
+                <Meta k="Beta vs Nifty" v={row.beta.toFixed(2)} />
+                <Meta k="Streak" v={`${row.streak > 0 ? "+" : ""}${row.streak}d`} />
+                <Meta k="CMF" v={row.cmf.toFixed(3)} />
+                <Meta k="vs 20d VWAP" v={`${row.vwapDist}%`} />
+                <Meta k="Day range" v={`${row.rangePos}% of H–L`} />
+                <Meta k="RV 20d" v={`${row.rv20}%`} />
+                <Meta k="Days above 20" v={`${row.daysAbove20}`} />
               </div>
               <div>
                 <p className="mb-1 text-xs text-muted-foreground">Research note (private, this browser)</p>

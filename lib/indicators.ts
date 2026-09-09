@@ -192,6 +192,68 @@ export function stdev(values: number[]): number {
   return Math.sqrt(v);
 }
 
+export function covariance(a: number[], b: number[]): number {
+  const n = Math.min(a.length, b.length);
+  if (n < 2) return 0;
+  const ma = a.slice(0, n).reduce((s, v) => s + v, 0) / n;
+  const mb = b.slice(0, n).reduce((s, v) => s + v, 0) / n;
+  let sum = 0;
+  for (let i = 0; i < n; i++) sum += (a[i] - ma) * (b[i] - mb);
+  return sum / (n - 1);
+}
+
+export function betaVs(stock: number[], bench: number[], lookback = 60): number {
+  const n = Math.min(lookback, stock.length, bench.length) - 1;
+  if (n < 10) return 1;
+  const sR: number[] = [];
+  const bR: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const si = stock.length - n + i;
+    const bi = bench.length - n + i;
+    if (stock[si - 1] > 0 && bench[bi - 1] > 0) {
+      sR.push(stock[si] / stock[si - 1] - 1);
+      bR.push(bench[bi] / bench[bi - 1] - 1);
+    }
+  }
+  const vb = covariance(bR, bR);
+  if (!vb) return 1;
+  return round(covariance(sR, bR) / vb, 2);
+}
+
+export function consecutiveStreak(closes: number[]): number {
+  if (closes.length < 2) return 0;
+  const up = closes[closes.length - 1] >= closes[closes.length - 2];
+  let n = 0;
+  for (let i = closes.length - 1; i > 0; i--) {
+    const ch = closes[i] - closes[i - 1];
+    if (up ? ch >= 0 : ch < 0) n++;
+    else break;
+  }
+  return up ? n : -n;
+}
+
+export function vwap(bars: OhlcBar[], period = 20): number {
+  const slice = bars.slice(-period);
+  if (!slice.length) return 0;
+  let pv = 0;
+  let vol = 0;
+  for (const b of slice) {
+    pv += ((b.high + b.low + b.close) / 3) * b.volume;
+    vol += b.volume;
+  }
+  return vol ? pv / vol : last(slice).close;
+}
+
+export function runDaysAbove(closes: number[], period: number): number {
+  const series = ema(closes, period);
+  let n = 0;
+  for (let i = closes.length - 1; i >= 0; i--) {
+    if (closes[i] >= series[i]) n++;
+    else break;
+  }
+  return n;
+}
+
 export function realizedVol(closes: number[], days = 20): number {
   if (closes.length < 3) return 0;
   const start = Math.max(1, closes.length - days);

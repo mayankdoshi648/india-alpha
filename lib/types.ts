@@ -199,6 +199,19 @@ export interface StockRow {
   pos52w: number;
   daysToEarnings: number | null;
   sectorQuad: RotationQuadrant;
+  change3m: number;
+  dayHigh: number;
+  dayLow: number;
+  rangePos: number;
+  avgVolume: number;
+  beta: number;
+  streak: number;
+  cmf: number;
+  high52: number;
+  low52: number;
+  vwapDist: number;
+  daysAbove20: number;
+  rv20: number;
 }
 
 export interface OptionStrike {
