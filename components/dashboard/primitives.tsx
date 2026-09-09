@@ -39,7 +39,17 @@ export function Section({
   );
 }
 
-export function Chg({ value, suffix = "%" }: { value: number; suffix?: string }) {
+export function Chg({
+  value,
+  suffix = "%",
+  icon = true,
+  size = "sm",
+}: {
+  value: number;
+  suffix?: string;
+  icon?: boolean;
+  size?: "sm" | "md";
+}) {
   if (!Number.isFinite(value)) {
     return <span className="font-mono text-xs text-slate-500">—</span>;
   }
@@ -47,11 +57,12 @@ export function Chg({ value, suffix = "%" }: { value: number; suffix?: string })
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-0.5 font-mono text-xs tabular-nums",
+        "inline-flex items-center gap-0.5 font-mono whitespace-nowrap tabular-nums",
+        size === "md" ? "text-[13px] font-semibold" : "text-xs",
         up ? "text-emerald-400" : "text-rose-400",
       )}
     >
-      {up ? <ArrowUpRight className="size-3.5" /> : <ArrowDownRight className="size-3.5" />}
+      {icon ? up ? <ArrowUpRight className="size-3.5" /> : <ArrowDownRight className="size-3.5" /> : null}
       {signed(value)}
       {suffix}
     </span>

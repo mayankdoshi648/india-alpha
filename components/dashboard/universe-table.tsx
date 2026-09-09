@@ -61,15 +61,15 @@ const PRESET_COLS: Record<Preset, Set<ColId> | "*"> = {
 const COLS: { id: ColId; label: string }[] = [
   { id: "watch", label: "" },
   { id: "stock", label: "Stock" },
+  { id: "d1", label: "1D %" },
+  { id: "cmp", label: "CMP" },
   { id: "n50", label: "N50" },
   { id: "cap", label: "Cap" },
   { id: "sector", label: "Sector" },
   { id: "quad", label: "Sector RS" },
-  { id: "cmp", label: "CMP" },
   { id: "dayH", label: "Day H" },
   { id: "dayL", label: "Day L" },
   { id: "range", label: "Range pos" },
-  { id: "d1", label: "1D" },
   { id: "w1", label: "1W" },
   { id: "m1", label: "1M" },
   { id: "m3", label: "3M" },
@@ -351,7 +351,13 @@ export function UniverseTable({
               {COLS.map((h) => (
                 <th
                   key={h.id}
-                  className={cn("border-b border-white/8 px-2 py-2 font-medium whitespace-nowrap", hide(h.id))}
+                  className={cn(
+                    "border-b border-white/8 px-2 py-2 font-medium whitespace-nowrap",
+                    hide(h.id),
+                    h.id === "watch" && "sticky left-0 z-20 bg-[#0b1424]",
+                    h.id === "stock" && "sticky left-9 z-20 min-w-[9.5rem] bg-[#0b1424]",
+                    h.id === "d1" && "sticky left-[11.5rem] z-20 min-w-[4.75rem] bg-[#0b1424]",
+                  )}
                 >
                   {h.label}
                 </th>
@@ -386,7 +392,7 @@ export function UniverseTable({
                       <Bookmark className={cn("size-4", watch.has(r.symbol) && "fill-amber-300")} />
                     </button>
                   </td>
-                  <td className={cn("sticky left-9 z-[1] bg-[#0e1728] px-2 py-1.5", hide("stock"))}>
+                  <td className={cn("sticky left-9 z-[1] min-w-[9.5rem] bg-[#0e1728] px-2 py-1.5", hide("stock"))}>
                     <button type="button" onClick={() => onOpen(r.symbol)} className="text-left hover:text-cyan-300">
                       <p className="font-medium underline-offset-2 hover:underline">
                         {r.symbol}
@@ -396,11 +402,19 @@ export function UniverseTable({
                           </span>
                         ) : null}
                       </p>
-                      <p className="mt-0.5 flex items-baseline gap-1.5">
-                        <span className="font-mono text-[12px] text-white tabular-nums">{inr(r.cmp)}</span>
-                        <Chg value={r.change1d} />
-                      </p>
+                      <p className="mt-0.5 font-mono text-[12px] text-white tabular-nums">{inr(r.cmp)}</p>
                     </button>
+                  </td>
+                  <td
+                    className={cn(
+                      "sticky left-[11.5rem] z-[1] min-w-[4.75rem] bg-[#0e1728] px-2 py-1.5",
+                      hide("d1"),
+                    )}
+                  >
+                    <Chg value={r.change1d} icon={false} size="md" />
+                  </td>
+                  <td className={cn("px-2 py-1.5 font-mono whitespace-nowrap tabular-nums", hide("cmp"))}>
+                    {inr(r.cmp)}
                   </td>
                   <td className={cn("px-2 py-1.5", hide("n50"))}>{r.nifty50 ? "Y" : ""}</td>
                   <td className={cn("px-2 py-1.5 capitalize", hide("cap"))}>{r.cap}</td>
@@ -411,14 +425,9 @@ export function UniverseTable({
                       {r.sectorQuad}
                     </span>
                   </td>
-                  <td className={cn("px-2 py-1.5 font-mono whitespace-nowrap tabular-nums", hide("cmp"))}>
-                    <p>{inr(r.cmp)}</p>
-                    <Chg value={r.change1d} />
-                  </td>
                   <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("dayH"))}>{inr(r.dayHigh)}</td>
                   <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("dayL"))}>{inr(r.dayLow)}</td>
                   <td className={cn("px-2 py-1.5", hide("range"))}><RangeBar value={r.rangePos} /></td>
-                  <td className={cn("px-2 py-1.5 whitespace-nowrap", hide("d1"))}><Chg value={r.change1d} /></td>
                   <td className={cn("px-2 py-1.5", hide("w1"))}><Chg value={r.change1w} /></td>
                   <td className={cn("px-2 py-1.5", hide("m1"))}><Chg value={r.change1m} /></td>
                   <td className={cn("px-2 py-1.5", hide("m3"))}><Chg value={r.change3m} /></td>
