@@ -1,4 +1,5 @@
 export function inr(n: number, d = 2): string {
+  if (!Number.isFinite(n)) return "—";
   return n.toLocaleString("en-IN", {
     minimumFractionDigits: d,
     maximumFractionDigits: d,
@@ -6,6 +7,7 @@ export function inr(n: number, d = 2): string {
 }
 
 export function compact(n: number): string {
+  if (!Number.isFinite(n)) return "—";
   const abs = Math.abs(n);
   if (abs >= 1e7) return `${(n / 1e7).toFixed(2)} Cr`;
   if (abs >= 1e5) return `${(n / 1e5).toFixed(2)} L`;
@@ -14,6 +16,7 @@ export function compact(n: number): string {
 }
 
 export function signed(n: number, d = 2): string {
+  if (!Number.isFinite(n)) return "—";
   const v = n.toFixed(d);
   return n > 0 ? `+${v}` : v;
 }

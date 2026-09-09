@@ -5,6 +5,7 @@ import type { HeatCell, RotationQuadrant, SectorTile } from "@/lib/types";
 import { Chg, Panel } from "@/components/dashboard/primitives";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { ChartFit } from "@/components/dashboard/chart-fit";
 import {
   CartesianGrid,
   ReferenceArea,
@@ -186,6 +187,7 @@ export function SectorMatrix({
         </div>
         )}
         <div className={compact ? "h-[188px]" : "h-80"}>
+          <ChartFit className="h-full w-full">
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart margin={compact ? { top: 10, right: 92, left: 4, bottom: 8 } : { top: 28, right: 120, left: 48, bottom: 28 }}>
               <ReferenceArea
@@ -261,13 +263,14 @@ export function SectorMatrix({
                     shape={SectorDot(QUAD_COLOR[q], setSector)}
                     isAnimationActive={false}
                     onClick={(item) => {
-                      const name = item.payload?.name as string | undefined;
+                      const name = (item as { payload?: Point } | undefined)?.payload?.name;
                       if (name) setSector(name);
                     }}
                   />
                 ))}
             </ScatterChart>
           </ResponsiveContainer>
+          </ChartFit>
         </div>
       </Panel>
 

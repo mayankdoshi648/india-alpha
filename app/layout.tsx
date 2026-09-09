@@ -26,7 +26,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-background font-sans text-foreground antialiased">
+      <body className="h-full min-h-full overflow-hidden bg-background font-sans text-foreground antialiased">
         <TooltipProvider>
           {children}
           <Toaster theme="dark" />

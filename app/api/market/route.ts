@@ -1,4 +1,5 @@
 import { buildSnapshot } from "@/lib/engine";
+import { withoutCharts } from "@/lib/payload";
 import { runWithDhan, sanitizeDhanInput } from "@/lib/dhan";
 import type { DhanCredentials, StrategySettings, UniverseId } from "@/lib/types";
 import { NextResponse } from "next/server";
@@ -18,7 +19,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const universe = (searchParams.get("universe") === "nifty500" ? "nifty500" : "nifty50") as UniverseId;
     const snap = await runWithDhan(credsFrom(req), () => buildSnapshot(universe));
-    return NextResponse.json(snap);
+    return NextResponse.json(withoutCharts(snap));
   } catch (e) {
     const message = e instanceof Error ? e.message : "snapshot failed";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
     const snap = await runWithDhan(credsFrom(req, body.dhan), () =>
       buildSnapshot(universe, body.settings),
     );
-    return NextResponse.json(snap);
+    return NextResponse.json(withoutCharts(snap));
   } catch (e) {
     const message = e instanceof Error ? e.message : "snapshot failed";
     return NextResponse.json({ error: message }, { status: 500 });

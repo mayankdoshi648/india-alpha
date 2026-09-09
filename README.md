@@ -12,7 +12,7 @@ cp .env.example .env.local   # optional server-side fallback; you can also paste
 npm run dev
 ```
 
-Open [http://127.0.0.1:43147](http://127.0.0.1:43147). The first paint is server-rendered so the tape shows even before client JS hydrates.
+Open [http://127.0.0.1:43147](http://127.0.0.1:43147). The shell paints immediately; quotes then load from `/api/market`.
 
 For a production-like local run (required if a preview iframe blocks `/_next` from `next dev`):
 
@@ -40,7 +40,7 @@ NSE (no key): `allIndices`, `fiidiiTradeData`, `option-chain-indices`.
 
 ## What is on the desk
 
-The desk is **one page**. Indices, mosaic, sector rotation, universe, alerts, setups, F&O and breadth sit together so you can watch the tape without switching tabs. Configure / Dhan keys open a side panel.
+The desk is **one page**. The first paint is a light shell; the tape loads from `/api/market` so the page is not a 1MB HTML dump. Indices, mosaic, sector rotation, universe, alerts, setups, F&O and breadth sit together so you can watch without switching tabs. Configure / Dhan keys open a side panel.
 
 1. **Watch strip** — Nifty, Bank Nifty, VIX, PCR, A/D, FII.
 2. **Index tape + mosaic + gainers/losers** — left column.

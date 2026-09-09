@@ -40,6 +40,9 @@ export function Section({
 }
 
 export function Chg({ value, suffix = "%" }: { value: number; suffix?: string }) {
+  if (!Number.isFinite(value)) {
+    return <span className="font-mono text-xs text-slate-500">—</span>;
+  }
   const up = value >= 0;
   return (
     <span

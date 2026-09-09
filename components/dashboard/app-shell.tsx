@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { DashboardSnapshot, DhanCredentials, StrategySettings, UniverseId } from "@/lib/types";
+import type { ChartPoint, DashboardSnapshot, DhanCredentials, StrategySettings, UniverseId } from "@/lib/types";
 import { DEFAULT_SETTINGS, STRATEGY_TEMPLATES } from "@/lib/settings";
 import { SettingsPanel } from "@/components/dashboard/settings-panel";
 import { SessionBar } from "@/components/dashboard/session-bar";
 import { StockChart } from "@/components/dashboard/stock-chart";
 import { DeskBoard } from "@/components/dashboard/board";
+import { DeskErrorBoundary } from "@/components/dashboard/error-boundary";
 import { Panel, Drawer } from "@/components/dashboard/primitives";
 import { Button } from "@/components/ui/button";
 import { PATTERN_LABEL, inr } from "@/lib/format";
@@ -42,46 +43,20 @@ const EMPTY_WATCH: WatchStore = {
 
 const EMPTY_DHAN: DhanCredentials = { accessToken: "", clientId: "" };
 
-export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
-  const [universe, setUniverse] = useState<UniverseId>(initial.universe);
+export function MarketDesk() {
+  const [universe, setUniverse] = useState<UniverseId>("nifty50");
   const [settings, setSettings] = useState<StrategySettings>(DEFAULT_SETTINGS);
-  const [data, setData] = useState<DashboardSnapshot>(initial);
+  const [data, setData] = useState<DashboardSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [watch, setWatch] = useState<WatchStore>(EMPTY_WATCH);
   const [openSymbol, setOpenSymbol] = useState<string | null>(null);
+  const [chart, setChart] = useState<ChartPoint[]>([]);
   const [dhan, setDhan] = useState<DhanCredentials>(EMPTY_DHAN);
   const [dhanBusy, setDhanBusy] = useState(false);
   const [dhanStatus, setDhanStatus] = useState<string | null>(null);
   const [dhanError, setDhanError] = useState<string | null>(null);
-
-  /* eslint-disable react-hooks/set-state-in-effect -- hydrate private lists from localStorage after paint */
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("imd-watch");
-      if (raw) setWatch({ ...EMPTY_WATCH, ...JSON.parse(raw) });
-      const s = localStorage.getItem("imd-settings");
-      let nextSettings = DEFAULT_SETTINGS;
-      if (s) {
-        nextSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(s) };
-        setSettings(nextSettings);
-      }
-      const d = localStorage.getItem("imd-dhan");
-      if (d) {
-        const parsed = JSON.parse(d) as DhanCredentials;
-        if (parsed.accessToken && parsed.clientId) {
-          setDhan(parsed);
-          void loadTape(universe, nextSettings, parsed);
-        }
-      }
-    } catch {
-      // ignore
-    }
-    // First hydrate only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   const persistWatch = (next: WatchStore) => {
     setWatch(next);
@@ -102,19 +77,78 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
         body: JSON.stringify({
           universe: u,
           settings: s,
-          dhan: creds.accessToken && creds.clientId ? creds : undefined,
+          dhan: creds.accessToken ? creds : undefined,
         }),
-        signal: AbortSignal.timeout(25_000),
+        signal: AbortSignal.timeout(40_000),
       });
-      if (!res.ok) throw new Error(`Market API ${res.status}`);
-      const json = (await res.json()) as DashboardSnapshot;
+      const json = (await res.json()) as DashboardSnapshot & { error?: string };
+      if (!res.ok) throw new Error(json.error || `Market API ${res.status}`);
       setData(json);
+      setUniverse(json.universe ?? u);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load the desk");
     } finally {
       setLoading(false);
     }
   }, [universe, settings, dhan]);
+
+  /* eslint-disable react-hooks/set-state-in-effect -- hydrate private lists from localStorage after paint */
+  useEffect(() => {
+    let nextSettings = DEFAULT_SETTINGS;
+    let creds = EMPTY_DHAN;
+    try {
+      const raw = localStorage.getItem("imd-watch");
+      if (raw) setWatch({ ...EMPTY_WATCH, ...JSON.parse(raw) });
+      const s = localStorage.getItem("imd-settings");
+      if (s) {
+        nextSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(s) };
+        setSettings(nextSettings);
+      }
+      const d = localStorage.getItem("imd-dhan");
+      if (d) {
+        const parsed = JSON.parse(d) as DhanCredentials;
+        if (parsed.accessToken) {
+          creds = parsed;
+          setDhan(parsed);
+        }
+      }
+    } catch {
+      // ignore corrupt localStorage
+    }
+    void loadTape("nifty50", nextSettings, creds);
+    // First hydrate only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  useEffect(() => {
+    if (!openSymbol) {
+      setChart([]);
+      return;
+    }
+    const existing = data?.stocks.find((s) => s.symbol === openSymbol)?.chart;
+    if (existing?.length) {
+      setChart(existing);
+      return;
+    }
+    let cancelled = false;
+    void fetch(`/api/stock?symbol=${encodeURIComponent(openSymbol)}&universe=${universe}`, {
+      signal: AbortSignal.timeout(15_000),
+      headers: dhan.accessToken
+        ? { "x-dhan-access-token": dhan.accessToken, "x-dhan-client-id": dhan.clientId }
+        : undefined,
+    })
+      .then((r) => r.json())
+      .then((json: { chart?: ChartPoint[] }) => {
+        if (!cancelled) setChart(json.chart ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setChart([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [openSymbol, universe, data, dhan.accessToken, dhan.clientId]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -132,8 +166,8 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
     [watch],
   );
 
-  const dhanLive = data.sources.quotes === "dhan" || data.sources.derivatives === "dhan";
-  const row = data.stocks.find((s) => s.symbol === openSymbol) ?? null;
+  const dhanLive = data?.sources.quotes === "dhan" || data?.sources.derivatives === "dhan";
+  const row = data?.stocks.find((s) => s.symbol === openSymbol) ?? null;
 
   function toggleWatch(symbol: string) {
     persistWatch((() => {
@@ -215,7 +249,7 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
   }
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-[#0b1220] text-slate-100">
+    <div className="flex h-full min-h-dvh flex-col overflow-hidden bg-[#0b1220] text-slate-100">
       <header className="shrink-0 border-b border-white/10 bg-[#0b1220]">
         <div className="flex flex-wrap items-center gap-2 px-3 py-2">
           <div className="flex items-center gap-2.5">
@@ -224,7 +258,11 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
             </div>
             <div>
               <p className="text-[13px] font-semibold tracking-tight text-white">India Market Desk</p>
-              <SessionBar data={data} token={dhan.accessToken} />
+              {data ? (
+                <SessionBar data={data} token={dhan.accessToken} />
+              ) : (
+                <p className="text-[12px] text-slate-500">Loading tape…</p>
+              )}
             </div>
           </div>
           <div className="ml-auto flex flex-wrap items-center gap-1.5">
@@ -300,23 +338,39 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
 
       <main className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-auto px-3 py-2.5 xl:overflow-hidden">
         {error ? (
-          <Panel className="flex items-center gap-3 text-rose-300">
+          <Panel className="flex flex-wrap items-center gap-3 text-rose-300">
             <WifiOff className="size-4" />
-            {error}
+            <span>{error}</span>
+            <Button size="sm" variant="outline" onClick={() => void load()}>
+              Retry
+            </Button>
           </Panel>
         ) : null}
-        {loading ? (
+        {loading && !data ? (
+          <div className="flex flex-1 items-center justify-center rounded-xl border border-white/10 bg-[#121b2c] text-sm text-slate-300">
+            Building the tape… first load can take a few seconds.
+          </div>
+        ) : null}
+        {loading && data ? (
           <div className="rounded-md border border-cyan-400/30 bg-cyan-950/80 px-3 py-1.5 text-sm text-cyan-100">
             Recalculating {universe === "nifty50" ? "Nifty 50" : "Nifty 500"}…
           </div>
         ) : null}
 
-        <DeskBoard
-          data={data}
-          watch={watchSet}
-          onToggleWatch={toggleWatch}
-          onOpen={setOpenSymbol}
-        />
+        {data ? (
+          <DeskErrorBoundary>
+            <DeskBoard
+              data={data}
+              watch={watchSet}
+              onToggleWatch={toggleWatch}
+              onOpen={setOpenSymbol}
+            />
+          </DeskErrorBoundary>
+        ) : !loading && error ? (
+          <div className="flex flex-1 items-center justify-center text-sm text-slate-500">
+            The tape did not load. Retry from the banner above.
+          </div>
+        ) : null}
       </main>
 
       <SettingsPanel
@@ -354,7 +408,7 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
                 <p className="font-mono text-3xl tabular-nums">{inr(row.cmp)}</p>
                 <Chg value={row.change1d} />
               </div>
-              <StockChart points={row.chart ?? []} emas={row.emas} />
+              <StockChart points={chart.length ? chart : row.chart ?? []} emas={row.emas} />
               <EmaPills emas={row.emas} />
               <div className="flex flex-wrap gap-1">
                 {row.patterns.map((p) => (

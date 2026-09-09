@@ -1,5 +1,6 @@
 "use client";
 
+import { ChartFit } from "@/components/dashboard/chart-fit";
 import type { ChartPoint, EmaStatus } from "@/lib/types";
 import {
   Bar,
@@ -28,7 +29,7 @@ export function StockChart({
     ema20,
   }));
   return (
-    <div className="h-48">
+    <ChartFit className="h-48">
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data}>
           <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
@@ -44,6 +45,6 @@ export function StockChart({
           <Line yAxisId="p" type="monotone" dataKey="ema20" stroke="#22d3ee" dot={false} strokeWidth={1} strokeDasharray="4 3" />
         </ComposedChart>
       </ResponsiveContainer>
-    </div>
+    </ChartFit>
   );
 }

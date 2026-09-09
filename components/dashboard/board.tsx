@@ -13,6 +13,7 @@ import { PATTERN_LABEL, compact, inr, signed } from "@/lib/format";
 import { Chg, EmaPills } from "@/components/dashboard/primitives";
 import { SectorMatrix } from "@/components/dashboard/sector-matrix";
 import { UniverseTable } from "@/components/dashboard/universe-table";
+import { DeskErrorBoundary } from "@/components/dashboard/error-boundary";
 import { cn } from "@/lib/utils";
 
 function Pane({
@@ -308,8 +309,10 @@ export function DeskBoard({
         </div>
 
         <div className="flex min-h-0 flex-col gap-2.5">
-          <Pane title="Sector rotation" className="h-[280px] xl:h-auto xl:flex-[0_0_42%]">
-            <SectorMatrix sectors={data.sectors} heatmap={data.heatmap} compact />
+          <Pane title="Sector rotation" className="h-[240px] shrink-0">
+            <DeskErrorBoundary>
+              <SectorMatrix sectors={data.sectors} heatmap={data.heatmap} compact />
+            </DeskErrorBoundary>
           </Pane>
           <Pane title="Universe" className="xl:flex-1">
             <UniverseTable
