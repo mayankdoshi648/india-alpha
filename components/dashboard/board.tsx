@@ -88,7 +88,7 @@ export function WatchStrip({ data }: { data: DashboardSnapshot }) {
             <p className="text-[11px] text-slate-400">{c.k}</p>
             <p className="mt-0.5 font-mono text-xl tracking-tight text-white tabular-nums">{c.v}</p>
             {c.spark && c.spark.length > 1 ? (
-              <Sparkline values={c.spark} width={88} height={22} />
+              <Sparkline values={c.spark} width={88} height={22} markLast />
             ) : null}
             {c.chg !== null && c.k !== "Advance / Decline" && c.k !== "FII net" ? (
               <Chg value={c.chg} />
@@ -119,7 +119,7 @@ function IndexList({ tiles }: { tiles: IndexTile[] }) {
             <p className="truncate text-[13px] font-medium text-white">{t.name}</p>
             <EmaPills emas={t.emas} />
           </div>
-          <Sparkline values={t.spark ?? []} width={72} height={24} />
+          <Sparkline values={t.spark ?? []} width={72} height={24} markLast />
           <div className="text-right">
             <p className="font-mono text-[15px] text-white tabular-nums">{inr(t.cmp, 2)}</p>
             <Chg value={t.changePct} />

@@ -79,7 +79,17 @@ export function EmaPills({ emas }: { emas: EmaStatus[] }) {
   );
 }
 
-export function Sparkline({ values, width = 84, height = 28 }: { values: number[]; width?: number; height?: number }) {
+export function Sparkline({
+  values,
+  width = 84,
+  height = 28,
+  markLast = false,
+}: {
+  values: number[];
+  width?: number;
+  height?: number;
+  markLast?: boolean;
+}) {
   if (values.length < 2) return <span className="text-muted-foreground">—</span>;
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -91,15 +101,21 @@ export function Sparkline({ values, width = 84, height = 28 }: { values: number[
       return `${x},${y}`;
     })
     .join(" ");
-  const up = values[values.length - 1] >= values[0];
+  const last = values[values.length - 1];
+  const first = values[0];
+  const up = last >= first;
+  const lastX = width;
+  const lastY = height - ((last - min) / span) * (height - 4) - 2;
+  const tone = up ? "#34d399" : "#fb7185";
   return (
     <svg width={width} height={height} className="overflow-visible">
       <polyline
         fill="none"
-        stroke={up ? "#34d399" : "#fb7185"}
+        stroke={tone}
         strokeWidth="1.6"
         points={pts}
       />
+      {markLast ? <circle cx={lastX} cy={lastY} r="2.4" fill={tone} /> : null}
     </svg>
   );
 }
