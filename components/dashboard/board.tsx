@@ -194,8 +194,16 @@ function AlertList({ alerts, onPick }: { alerts: DeskAlert[]; onPick: (s: string
 
 function SetupList({ hits, onPick }: { hits: PatternHit[]; onPick: (s: string) => void }) {
   if (!hits.length) return <p className="text-sm text-slate-500">No qualified setups.</p>;
-  const swing = hits.filter((h) => h.kind === "vcp" || h.kind === "breakout");
-  const rest = hits.filter((h) => h.kind !== "vcp" && h.kind !== "breakout");
+    const swingRank = (h: PatternHit) =>
+      h.swing?.status === "triggered" ? 0 :
+      h.swing?.status === "throwback" ? 1 :
+      h.swing?.status === "at_pivot" ? 2 :
+      h.swing?.status === "coiling" ? 3 :
+      4;
+    const swing = hits
+      .filter((h) => h.kind === "vcp" || h.kind === "breakout")
+      .sort((a, b) => swingRank(a) - swingRank(b) || b.score - a.score);
+    const rest = hits.filter((h) => h.kind !== "vcp" && h.kind !== "breakout");
   const ordered = [...swing, ...rest].slice(0, 12);
   return (
     <div className="space-y-1.5">

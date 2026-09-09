@@ -72,7 +72,7 @@ import type {
   UniverseId,
 } from "@/lib/types";
 
-const CACHE_VER = 11;
+const CACHE_VER = 12;
 const cache = new Map<string, { at: number; value: DashboardSnapshot }>();
 
 function overlayLast(bars: OhlcBar[], close: number, changePct?: number): OhlcBar[] {
@@ -555,6 +555,13 @@ export async function buildSnapshot(
     if (row.fo) row.oiBuild = row.fo.oiBuild;
     stocks.push(row);
     for (const d of detected) {
+      if (
+        d.kind === "vcp" &&
+        d.swing?.status === "coiling" &&
+        (d.swing.tightnessPct > 58 || d.swing.volDryPct < 8)
+      ) {
+        continue;
+      }
       patterns.push({
         symbol: s.symbol,
         name: s.name,

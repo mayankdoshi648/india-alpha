@@ -56,8 +56,8 @@ The right-hand **Swing · VCP / breakout** list and the stock drawer score two M
 
 A VCP is a Stage 2 name that coils through **successively tighter pullbacks** as supply leaves the stock.
 
-- Windows: swing highs when they exist, else 34 → 21 → 13 → 8 bars. Need **at least two** contractions, each shallower than the last.
-- Last contraction **≤ 12%** deep. Volume should dry up vs the prior three weeks.
+- Windows: nested 34 → 21 → 13 → 8 day ranges at the right edge (and swing-high pullbacks in the last 60 days as a fallback). Need **at least two** contractions, each shallower than the last.
+- Last contraction **≤ 8%** deep and no more than ~60% of the first leg. Volume should dry up vs the prior three weeks.
 - **Pivot** = high of the last contraction. **Buy stop** a tick above that high. **Stop** under the last contraction low.
 - Targets: **1R** (risk from entry to stop), **2R**, and a **measured move** (height of the whole coil added to the pivot).
 - Status: coiling → at pivot → triggered → throwback (price returns to the 10 EMA after the break) → extended (>8% above the 10 EMA, do not chase) → failed (pivot lost).

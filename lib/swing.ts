@@ -1,7 +1,7 @@
 import { ema, last, pct, round, sma } from "@/lib/indicators";
 import type { OhlcBar, StrategySettings, SwingCheck, SwingSetup, SwingStatus, VcpLeg } from "@/lib/types";
 
-const VCP_LAST_DEPTH_MAX = 12;
+const VCP_LAST_DEPTH_MAX = 8;
 const EXTENDED_VS_10 = 8;
 
 function windowStats(bars: OhlcBar[]) {
@@ -29,7 +29,7 @@ function planLevels(pivot: number, stop: number, baseHeight: number, close: numb
   const target = measured;
   const riskPct = round(Math.abs(pct(close, safeStop)), 2);
   const rewardPct = round(pct(close, target), 2);
-  const rr = riskPct > 0.15 ? round(rewardPct / riskPct, 1) : 0;
+  const rr = riskPct > 0.15 ? round(Math.min(8, rewardPct / riskPct), 1) : 0;
   return { stop: round(safeStop, 2), target, target1R, target2R, measured, riskPct, rewardPct, rr };
 }
 
@@ -118,7 +118,8 @@ function legsFromSlice(slice: OhlcBar[], priorVol: number): VcpLeg {
 }
 
 function legsFromSwings(body: OhlcBar[]): VcpLeg[] {
-  const highs = swingHighs(body).slice(-6);
+  const minI = Math.max(0, body.length - 60);
+  const highs = swingHighs(body).filter((i) => i >= minI).slice(-6);
   if (highs.length < 3) return [];
   const legs: VcpLeg[] = [];
   let priorVol = 0;
@@ -135,18 +136,14 @@ function legsFromSwings(body: OhlcBar[]): VcpLeg[] {
 function legsFromWindows(body: OhlcBar[]): VcpLeg[] {
   const windows = [34, 21, 13, 8];
   const legs: VcpLeg[] = [];
-  let cursor = body.length;
   let priorVol = 0;
   for (const w of windows) {
-    const from = Math.max(0, cursor - w);
-    const slice = body.slice(from, cursor);
+    const slice = body.slice(-w);
     if (slice.length < 6) break;
     const st = windowStats(slice);
     legs.push(legsFromSlice(slice, priorVol));
     priorVol = st.vol;
-    cursor = from + Math.floor(w * 0.28);
   }
-  legs.reverse();
   return legs;
 }
 
@@ -155,20 +152,28 @@ function isContracting(legs: VcpLeg[]): { ok: boolean; tightening: number; lastD
   const depths = legs.map((l) => l.depthPct);
   let tightening = 0;
   for (let i = 1; i < depths.length; i++) {
-    if (depths[i] < depths[i - 1] * 0.96) tightening++;
+    if (depths[i] < depths[i - 1] * 0.92) tightening++;
   }
   const lastDepth = depths[depths.length - 1];
-  return { ok: tightening >= 1 && lastDepth <= VCP_LAST_DEPTH_MAX, tightening, lastDepth };
+  const first = depths[0];
+  const widest = Math.max(...depths);
+  const ok =
+    tightening >= Math.max(2, depths.length - 2) &&
+    lastDepth <= VCP_LAST_DEPTH_MAX &&
+    lastDepth <= first * 0.55 &&
+    first >= 10 &&
+    widest <= 18;
+  return { ok, tightening, lastDepth };
 }
 
 export function analyzeVcp(bars: OhlcBar[], settings: StrategySettings): SwingSetup | null {
   if (bars.length < 50) return null;
   const body = bars.slice(0, -1);
   const lastBar = last(bars);
-  let legs = legsFromSwings(body);
+  let legs = legsFromWindows(body);
   let contraction = isContracting(legs);
   if (!contraction.ok) {
-    legs = legsFromWindows(body);
+    legs = legsFromSwings(body);
     contraction = isContracting(legs);
   }
   if (!contraction.ok) return null;
