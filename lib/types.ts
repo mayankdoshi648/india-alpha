@@ -108,6 +108,10 @@ export interface DerivativesRadar {
   callOi: number;
   putOi: number;
   expiry: string;
+  ladder: OptionStrike[];
+  callWall: number;
+  putWall: number;
+  ivSkew: number;
 }
 
 export interface BreadthCircle {
@@ -145,6 +149,16 @@ export interface HeatCell {
   rsi: number;
 }
 
+export type OiBuild = "long-build" | "short-cover" | "short-build" | "long-unwind" | "neutral";
+
+export interface ChartPoint {
+  date: string;
+  close: number;
+  high: number;
+  low: number;
+  volume: number;
+}
+
 export interface StockRow {
   symbol: string;
   name: string;
@@ -174,6 +188,35 @@ export interface StockRow {
   rsiAboveMa: boolean;
   bullishCross: boolean;
   weeklyStack: "bullish" | "bearish" | "mixed";
+  deliveryPct: number;
+  oiBuild: OiBuild;
+  rsNifty: number;
+  chart: ChartPoint[];
+}
+
+export interface OptionStrike {
+  strike: number;
+  callOi: number;
+  putOi: number;
+  callIv: number;
+  putIv: number;
+}
+
+export interface MacroTile {
+  id: string;
+  name: string;
+  value: number;
+  changePct: number;
+  hint: string;
+  unit?: "inr" | "pct" | "raw";
+}
+
+export interface DeskAlert {
+  id: string;
+  tone: "info" | "warn" | "setup";
+  title: string;
+  detail: string;
+  symbol?: string;
 }
 
 export interface PatternHit {
@@ -224,6 +267,7 @@ export interface TrendFilters {
 
 export interface DashboardSnapshot {
   asOf: string;
+  generatedAt: string;
   universe: UniverseId;
   sources: {
     quotes: DataSource;
@@ -233,6 +277,8 @@ export interface DashboardSnapshot {
   dhanConfigured: boolean;
   indices: IndexTile[];
   derivatives: DerivativesRadar;
+  macro: MacroTile[];
+  alerts: DeskAlert[];
   breadthGauges: BreadthCircle[];
   sectors: SectorTile[];
   heatmap: HeatCell[];

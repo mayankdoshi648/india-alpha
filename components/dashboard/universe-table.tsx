@@ -6,7 +6,8 @@ import { PATTERN_LABEL, PATTERN_TONE, compact, fmtDate, inr } from "@/lib/format
 import { Chg, EmaPills, Sparkline } from "@/components/dashboard/primitives";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Bookmark, Search } from "lucide-react";
+import { Bookmark, Download, Search } from "lucide-react";
+import { downloadCsv, exportUniverseCsv } from "@/lib/export";
 
 const FILTERS: { id: PatternKind | "all" | "watch"; label: string }[] = [
   { id: "all", label: "All" },
@@ -90,9 +91,20 @@ export function UniverseTable({
           ))}
         </div>
       </div>
-      <p className="text-xs text-muted-foreground">{shown.length} names in view</p>
+      <p className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span>{shown.length} names in view</span>
+        <button
+          type="button"
+          id="export-universe-csv"
+          onClick={() => downloadCsv("india-desk-universe.csv", exportUniverseCsv(shown))}
+          className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 hover:bg-white/5"
+        >
+          <Download className="size-3.5" />
+          Export CSV
+        </button>
+      </p>
       <div className="overflow-auto rounded-xl border border-white/8">
-        <table className="min-w-[1680px] w-full border-collapse text-left text-xs">
+        <table className="min-w-[1980px] w-full border-collapse text-left text-xs">
           <thead className="sticky top-0 z-10 bg-[#0b1424] text-[10px] tracking-wide text-muted-foreground uppercase">
             <tr>
               {[
@@ -111,6 +123,9 @@ export function UniverseTable({
                 "Gap %",
                 "EMAs",
                 "% vs 20",
+                "Delivery %",
+                "RS vs Nifty",
+                "OI build",
                 "% below 52W H",
                 "% above 52W L",
                 "Prev earnings",
@@ -168,6 +183,9 @@ export function UniverseTable({
                 <td className="px-2 py-2"><Chg value={r.gapPct} /></td>
                 <td className="px-2 py-2"><EmaPills emas={r.emas} /></td>
                 <td className="px-2 py-2"><Chg value={r.distFrom20Ema} /></td>
+                <td className="px-2 py-2 font-mono tabular-nums">{r.deliveryPct.toFixed(1)}%</td>
+                <td className="px-2 py-2"><Chg value={r.rsNifty} /></td>
+                <td className="px-2 py-2 capitalize whitespace-nowrap">{r.oiBuild.replace("-", " ")}</td>
                 <td className="px-2 py-2 font-mono tabular-nums">{r.below52wHigh.toFixed(1)}%</td>
                 <td className="px-2 py-2 font-mono tabular-nums">{r.above52wLow.toFixed(1)}%</td>
                 <td className="px-2 py-2 whitespace-nowrap">{fmtDate(r.prevEarningDate)}</td>

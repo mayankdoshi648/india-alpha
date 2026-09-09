@@ -7,6 +7,8 @@ import {
   last,
   maxPain,
   pct,
+  realizedVol,
+  aroundAtm,
   resample,
   round,
   rsi,
@@ -16,8 +18,10 @@ import {
 } from "@/lib/indicators";
 import { detectPatterns, stage2Checklist } from "@/lib/patterns";
 import {
+  demoDelivery,
   demoFlows,
   demoIndexBars,
+  demoOiBuild,
   demoOptionStrikes,
   demoPcrHistory,
   earningsFor,
@@ -48,10 +52,13 @@ import type {
   BreadthPoint,
   DashboardSnapshot,
   DataSource,
+  DeskAlert,
   DerivativesRadar,
   HeatCell,
   IndexTile,
+  MacroTile,
   OhlcBar,
+  OptionStrike,
   PatternHit,
   SectorTile,
   StockRow,
@@ -59,7 +66,7 @@ import type {
   UniverseId,
 } from "@/lib/types";
 
-const CACHE_VER = 4;
+const CACHE_VER = 5;
 const cache = new Map<string, { at: number; value: DashboardSnapshot }>();
 
 function overlayLast(bars: OhlcBar[], close: number, changePct?: number): OhlcBar[] {
@@ -149,6 +156,7 @@ async function tryLiveDerivatives(spot: number): Promise<{ radar?: Partial<Deriv
         const putOi = chain.strikes.reduce((s, x) => s + x.putOi, 0);
         const pain = maxPain(chain.strikes);
         const usedSpot = chain.spot || spot;
+        const ladder = aroundAtm(chain.strikes, usedSpot);
         return {
           source: "dhan",
           radar: {
@@ -159,6 +167,7 @@ async function tryLiveDerivatives(spot: number): Promise<{ radar?: Partial<Deriv
             callOi,
             putOi,
             expiry,
+            ladder,
           },
         };
       }
@@ -172,6 +181,7 @@ async function tryLiveDerivatives(spot: number): Promise<{ radar?: Partial<Deriv
     const putOi = chain.strikes.reduce((s, x) => s + x.putOi, 0);
     const pain = maxPain(chain.strikes);
     const usedSpot = chain.spot || spot;
+    const ladder = aroundAtm(chain.strikes, usedSpot);
     return {
       source: "nse",
       radar: {
@@ -182,6 +192,7 @@ async function tryLiveDerivatives(spot: number): Promise<{ radar?: Partial<Deriv
         callOi,
         putOi,
         expiry: chain.expiry,
+        ladder,
       },
     };
   } catch {
@@ -292,13 +303,23 @@ export async function buildSnapshot(
 
   const flows = flowLive.flows?.length ? flowLive.flows : demoFlows(days);
   const demoStrikes = demoOptionStrikes(niftyClose);
+  const ladder: OptionStrike[] = derivLive.radar?.ladder?.length
+    ? derivLive.radar.ladder
+    : aroundAtm(demoStrikes, niftyClose);
   const callOi = derivLive.radar?.callOi ?? demoStrikes.reduce((s, x) => s + x.callOi, 0);
   const putOi = derivLive.radar?.putOi ?? demoStrikes.reduce((s, x) => s + x.putOi, 0);
   const pain = derivLive.radar?.maxPain ?? maxPain(demoStrikes);
-  const vixBars = generateIndexPath("vix", days, 15.8);
+  let vixBars = generateIndexPath("vix", days, 15.8);
+  if (liveIdx["INDIA VIX"]?.last) {
+    vixBars = overlayLast(vixBars, liveIdx["INDIA VIX"].last, liveIdx["INDIA VIX"].percentChange);
+  }
   const vix = last(vixBars).close;
   const vixPrev = vixBars[vixBars.length - 2].close;
   const ivRank = round(((vix - 11) / (28 - 11)) * 100, 0);
+  const callWall = ladder.reduce((a, b) => (a.callOi >= b.callOi ? a : b), ladder[0])?.strike ?? 0;
+  const putWall = ladder.reduce((a, b) => (a.putOi >= b.putOi ? a : b), ladder[0])?.strike ?? 0;
+  const atm = aroundAtm(ladder, derivLive.radar?.spot ?? niftyClose, 1)[0];
+  const ivSkew = atm ? round(atm.putIv - atm.callIv, 2) : 0;
 
   const derivatives: DerivativesRadar = {
     fiiNet: last(flows).fiiNet,
@@ -319,6 +340,10 @@ export async function buildSnapshot(
     callOi,
     putOi,
     expiry: derivLive.radar?.expiry ?? nextThursday(asOf),
+    ladder,
+    callWall,
+    putWall,
+    ivSkew,
   };
 
   const memberCloses = members.map((s) => stockBars.get(s.symbol)!.map((b) => b.close));
@@ -479,6 +504,16 @@ export async function buildSnapshot(
       rsiAboveMa: rsiNow >= rsiMa,
       bullishCross: crossedUp(fast, slow, 5),
       weeklyStack: stackAlignment(weekly),
+      deliveryPct: demoDelivery(s.symbol),
+      oiBuild: demoOiBuild(round(pct(prev.close, lastBar.close), 2), round(volSpike, 2)),
+      rsNifty: round(pct(valueAt(closes, 21), lastBar.close) - pct(valueAt(niftyCloses, 21), niftyClose), 2),
+      chart: bars.slice(-80).map((b) => ({
+        date: b.date,
+        close: b.close,
+        high: b.high,
+        low: b.low,
+        volume: b.volume,
+      })),
     };
     stocks.push(row);
     for (const d of detected) {
@@ -546,9 +581,88 @@ export async function buildSnapshot(
   const advancing = stocks.filter((s) => s.change1d > 0).length;
   const declining = stocks.filter((s) => s.change1d < 0).length;
   const unchanged = stocks.length - advancing - declining;
+  const niftyTile = indices.find((t) => t.id === "nifty") ?? indices[0];
+  const realized = realizedVol(niftyCloses, 20);
+  const usdLive = liveIdx["USD-INR"] ?? liveIdx["USDINR"];
+  const usdBars = usdLive?.last
+    ? overlayLast(generateIndexPath("usdinr", days, 83.2), usdLive.last, usdLive.percentChange)
+    : generateIndexPath("usdinr", days, 83.2);
+  const crudeBars = generateIndexPath("crude", days, 72.4);
+  const gsecBars = generateIndexPath("gsec10", days, 6.52);
+  const usdNow = last(usdBars);
+  const usdPrev = usdBars[usdBars.length - 2];
+  const crudeNow = last(crudeBars);
+  const gsecNow = last(gsecBars);
+
+  const macro: MacroTile[] = [
+    {
+      id: "gap",
+      name: "Nifty overnight",
+      value: niftyTile.open,
+      changePct: round(pct(niftyTile.prevClose, niftyTile.open), 2),
+      hint: "Open vs previous close",
+      unit: "pct",
+    },
+    {
+      id: "vix",
+      name: "India VIX",
+      value: derivatives.indiaVix,
+      changePct: derivatives.indiaVixChangePct,
+      hint: `${derivatives.volatilityRegime} regime`,
+      unit: "raw",
+    },
+    {
+      id: "realized",
+      name: "Nifty 20d realized",
+      value: realized,
+      changePct: round(derivatives.indiaVix - realized, 2),
+      hint: "VIX minus realized in the change field",
+      unit: "raw",
+    },
+    {
+      id: "premium",
+      name: "Vol premium",
+      value: round(derivatives.indiaVix - realized, 2),
+      changePct: round(((derivatives.indiaVix - realized) / Math.max(realized, 1)) * 100, 1),
+      hint: "Implied minus realized",
+      unit: "raw",
+    },
+    {
+      id: "usdinr",
+      name: "USD / INR",
+      value: round(usdNow.close, 2),
+      changePct: round(pct(usdPrev.close, usdNow.close), 2),
+      hint: usdLive ? "NSE last" : "Local tape",
+      unit: "raw",
+    },
+    {
+      id: "gsec",
+      name: "10Y G-Sec",
+      value: round(gsecNow.close, 2),
+      changePct: round(pct(gsecBars[gsecBars.length - 2].close, gsecNow.close), 2),
+      hint: "Yield, local tape",
+      unit: "raw",
+    },
+    {
+      id: "crude",
+      name: "Brent proxy",
+      value: round(crudeNow.close, 2),
+      changePct: round(pct(crudeBars[crudeBars.length - 2].close, crudeNow.close), 2),
+      hint: "Risk-on commodity tape",
+      unit: "raw",
+    },
+  ];
+
+  const alerts = buildAlerts({
+    derivatives,
+    stocks,
+    patterns,
+    ema200: lastB?.ema200 ?? 0,
+  });
 
   const snapshot: DashboardSnapshot = {
     asOf,
+    generatedAt: new Date().toISOString(),
     universe,
     sources: {
       quotes: Object.keys(quotes).length ? "dhan" : liveIdx["NIFTY 50"] ? "nse" : "demo",
@@ -558,6 +672,8 @@ export async function buildSnapshot(
     dhanConfigured: dhanConfigured(),
     indices,
     derivatives,
+    macro,
+    alerts,
     breadthGauges,
     sectors,
     heatmap,
@@ -602,4 +718,90 @@ function nextThursday(from: string): string {
   const add = (4 - day + 7) % 7 || 7;
   d.setUTCDate(d.getUTCDate() + add);
   return d.toISOString().slice(0, 10);
+}
+
+function buildAlerts(input: {
+  derivatives: DerivativesRadar;
+  stocks: StockRow[];
+  patterns: PatternHit[];
+  ema200: number;
+}): DeskAlert[] {
+  const alerts: DeskAlert[] = [];
+  if (input.derivatives.fiiStreak <= -3) {
+    alerts.push({
+      id: "fii-sell",
+      tone: "warn",
+      title: `FII ${Math.abs(input.derivatives.fiiStreak)}-day sell streak`,
+      detail: `Net ${input.derivatives.fiiNet.toFixed(0)} cr. DII is ${input.derivatives.diiNet >= 0 ? "absorbing" : "also selling"}.`,
+    });
+  } else if (input.derivatives.fiiStreak >= 3) {
+    alerts.push({
+      id: "fii-buy",
+      tone: "info",
+      title: `FII ${input.derivatives.fiiStreak}-day buy streak`,
+      detail: `Net ${input.derivatives.fiiNet.toFixed(0)} cr into cash.`,
+    });
+  }
+  if (input.derivatives.volatilityRegime === "elevated" || input.derivatives.volatilityRegime === "crisis") {
+    alerts.push({
+      id: "vix",
+      tone: "warn",
+      title: `India VIX ${input.derivatives.volatilityRegime}`,
+      detail: `VIX ${input.derivatives.indiaVix.toFixed(1)}. Size positions down until vol mean-reverts.`,
+    });
+  }
+  if (input.derivatives.niftyPcr >= 1.2) {
+    alerts.push({
+      id: "pcr-put",
+      tone: "info",
+      title: `Put-heavy PCR ${input.derivatives.niftyPcr.toFixed(2)}`,
+      detail: `Call wall ${input.derivatives.callWall}, put wall ${input.derivatives.putWall}.`,
+    });
+  } else if (input.derivatives.niftyPcr > 0 && input.derivatives.niftyPcr <= 0.75) {
+    alerts.push({
+      id: "pcr-call",
+      tone: "warn",
+      title: `Call-heavy PCR ${input.derivatives.niftyPcr.toFixed(2)}`,
+      detail: "Option traders are long calls / short puts. Fade late-day squeezes.",
+    });
+  }
+  if (input.ema200 < 40) {
+    alerts.push({
+      id: "ema200",
+      tone: "warn",
+      title: `Only ${input.ema200.toFixed(0)}% of the universe is above the 200 EMA`,
+      detail: "Long-term participation is weak. Prefer relative-strength names.",
+    });
+  }
+  const oversold = input.stocks.filter((s) => s.rsi < 32 && s.distFrom20Ema > -4 && s.emaStack !== "bearish").slice(0, 3);
+  for (const s of oversold) {
+    alerts.push({
+      id: `os-${s.symbol}`,
+      tone: "setup",
+      title: `${s.symbol} oversold near 20 EMA`,
+      detail: `RSI ${s.rsi.toFixed(1)}, ${s.distFrom20Ema}% vs 20 EMA, delivery ${s.deliveryPct}%.`,
+      symbol: s.symbol,
+    });
+  }
+  const spikes = input.stocks.filter((s) => s.volSpike >= 2 && s.change1d > 0).slice(0, 3);
+  for (const s of spikes) {
+    alerts.push({
+      id: `vol-${s.symbol}`,
+      tone: "setup",
+      title: `${s.symbol} volume surge on an up day`,
+      detail: `${s.volSpike.toFixed(1)}x 9-day volume, ${s.oiBuild.replace("-", " ")}.`,
+      symbol: s.symbol,
+    });
+  }
+  const breakouts = input.patterns.filter((p) => p.kind === "breakout").slice(0, 2);
+  for (const p of breakouts) {
+    alerts.push({
+      id: `bo-${p.symbol}`,
+      tone: "setup",
+      title: `${p.symbol} qualified base breakout`,
+      detail: p.detail,
+      symbol: p.symbol,
+    });
+  }
+  return alerts.slice(0, 10);
 }

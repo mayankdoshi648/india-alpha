@@ -191,3 +191,24 @@ export function stdev(values: number[]): number {
   const v = values.reduce((s, x) => s + (x - m) ** 2, 0) / (values.length - 1);
   return Math.sqrt(v);
 }
+
+export function realizedVol(closes: number[], days = 20): number {
+  if (closes.length < 3) return 0;
+  const start = Math.max(1, closes.length - days);
+  const rets: number[] = [];
+  for (let i = start; i < closes.length; i++) {
+    if (closes[i - 1] > 0) rets.push(Math.log(closes[i] / closes[i - 1]));
+  }
+  return round(stdev(rets) * Math.sqrt(252) * 100, 2);
+}
+
+export function aroundAtm<T extends { strike: number }>(strikes: T[], spot: number, count = 15): T[] {
+  if (!strikes.length) return [];
+  const sorted = [...strikes].sort((a, b) => a.strike - b.strike);
+  let best = 0;
+  for (let i = 1; i < sorted.length; i++) {
+    if (Math.abs(sorted[i].strike - spot) < Math.abs(sorted[best].strike - spot)) best = i;
+  }
+  const half = Math.floor(count / 2);
+  return sorted.slice(Math.max(0, best - half), best + half + 1);
+}

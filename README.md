@@ -41,15 +41,18 @@ NSE (no key): `allIndices`, `fiidiiTradeData`, `option-chain-indices`.
 ## What is on the desk
 
 1. **Index tiles** — Nifty, Bank Nifty, Sensex, large / mid / small cap CMP, gain%, 10/20/50/200 EMA above/below.
-2. **Institutional F&O radar** — FII/DII net flow, India VIX regime, Nifty PCR, max pain.
-3. **EMA breadth gauges** — % of the universe above 10/20 (short), 50 (medium), 200 (long) on D/W/M.
-4. **Sector health** — sector tiles with the same EMA tape, constituent heatmap, 4-quadrant rotation (leading / weakening / lagging / improving), turnover share, A/D and Chaikin Money Flow.
-5. **Universe inspector** — watchlist mark, cap, sector, CMP, 1D/1W/1M, RSI(14), 7-day sparkline, volume, 1D/9D spike, gap %, EMAs, % vs 20 EMA, 52-week range, previous/next earnings and earnings-day impact.
-6. **Setup scanner** — Stage 2 checklist, qualified base breakouts, volume surge, VCP, bullish/bearish/hidden divergence, pivot reclaim, oversold pullback.
-7. **Market breadth** — seven indicators with a 60-session drill-down.
-8. **Trend filters** — EMA stack, convergence, 10/20 bullish crosses, RSI above its MA, daily and/or weekly.
-9. **Settings** — EMA periods, RSI, volume-spike and breakout thresholds, Stage 2 near-high/low filters, plus three templates.
-10. **Watchlists** — three private lists (Core, Breakouts, Research) and per-stock research notes in this browser.
+2. **Session clock** — NSE pre-open / open / closed in IST, quote age, source badges, Dhan token countdown, 60s auto-refresh while the cash market is open.
+3. **Desk alerts** — FII streaks, VIX regime, PCR extremes, oversold-near-20 EMA, volume surges, breakouts.
+4. **Session macro** — overnight gap, India VIX vs 20-day realized vol, vol premium, USD/INR, 10Y G-Sec, crude.
+5. **Institutional F&O radar** — FII/DII net flow, India VIX regime, Nifty PCR, max pain.
+6. **Nifty OI ladder** — call/put OI around ATM, call wall, put wall, IV skew.
+7. **EMA breadth gauges** — % of the universe above 10/20 (short), 50 (medium), 200 (long) on D/W/M.
+8. **Sector health** — sector tiles, constituent heatmap, 4-quadrant rotation.
+9. **Universe inspector** — watchlist, cap, sector, returns, RSI, sparkline, volume, delivery %, RS vs Nifty, OI build, EMAs, 52-week range, earnings, CSV export.
+10. **Stock drawer** — 80-session chart, delivery, RS, OI build, notes, watchlists.
+11. **Setup scanner** — Stage 2, breakouts, volume surge, VCP, divergences, pivot reclaim, oversold pullback.
+12. **Market breadth** — seven indicators with a 60-session drill-down.
+13. **Settings** — EMA/RSI/volume/breakout templates plus on-page Dhan keys.
 
 ## Scripts
 

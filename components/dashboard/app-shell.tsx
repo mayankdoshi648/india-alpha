@@ -7,15 +7,21 @@ import { DEFAULT_SETTINGS, STRATEGY_TEMPLATES } from "@/lib/settings";
 import { IndexTiles } from "@/components/dashboard/index-tiles";
 import { SetupRadar } from "@/components/dashboard/setup-radar";
 import { Derivatives } from "@/components/dashboard/derivatives";
+import { OptionLadder } from "@/components/dashboard/option-ladder";
 import { BreadthGauges } from "@/components/dashboard/breadth-gauges";
 import { SectorMatrix } from "@/components/dashboard/sector-matrix";
 import { UniverseTable } from "@/components/dashboard/universe-table";
 import { BreadthSection } from "@/components/dashboard/market-breadth";
 import { SettingsPanel } from "@/components/dashboard/settings-panel";
+import { SessionBar } from "@/components/dashboard/session-bar";
+import { MacroStrip } from "@/components/dashboard/macro-strip";
+import { DeskAlerts } from "@/components/dashboard/desk-alerts";
+import { StockChart } from "@/components/dashboard/stock-chart";
 import { Section, Panel, Drawer } from "@/components/dashboard/primitives";
 import { Button } from "@/components/ui/button";
 import { PATTERN_LABEL, inr } from "@/lib/format";
 import { Chg, EmaPills } from "@/components/dashboard/primitives";
+import { indiaSession } from "@/lib/session";
 import {
   Activity,
   KeyRound,
@@ -120,6 +126,15 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
     }
   }, [universe, settings, dhan]);
 
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.hidden) return;
+      if (!indiaSession().open) return;
+      void loadTape();
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [loadTape]);
+
   const load = loadTape;
 
   const watchSet = useMemo(
@@ -220,6 +235,7 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
             <div>
               <p className="text-[11px] tracking-[0.2em] text-cyan-400/80 uppercase">India Market Desk</p>
               <h1 className="text-base font-medium">Nifty 50 / Nifty 500 market view</h1>
+              <SessionBar data={data} token={dhan.accessToken} />
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -292,9 +308,12 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
         <nav className="mx-auto hidden max-w-[1600px] gap-3 overflow-x-auto px-4 pb-2 text-[11px] text-muted-foreground md:flex">
           {[
             ["dhan", "Dhan"],
+            ["alerts", "Alerts"],
+            ["session", "Session"],
             ["indices", "Indices"],
             ["setups", "Setups"],
             ["derivatives", "Institutional F&O"],
+            ["ladder", "OI ladder"],
             ["gauges", "EMA breadth"],
             ["sectors", "Sectors"],
             ["universe", "Universe"],
@@ -335,6 +354,22 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
             onDisconnect={disconnectDhan}
           />
         </Section>
+        <Section
+          id="alerts"
+          kicker="Desk radar"
+          title="Live alerts"
+          subtitle="FII streaks, VIX regime, PCR extremes, oversold-near-20 names, volume surges and breakouts. Click a name to open the chart."
+        >
+          <DeskAlerts alerts={data.alerts ?? []} onPick={setOpenSymbol} />
+        </Section>
+        <Section
+          id="session"
+          kicker="Risk tape"
+          title="Session macro"
+          subtitle="Overnight gap, India VIX vs 20-day realized vol, USD/INR, 10Y G-Sec and crude. Auto-refresh runs while NSE is open."
+        >
+          <MacroStrip tiles={data.macro ?? []} />
+        </Section>
         <>
             <Section
               id="indices"
@@ -359,6 +394,14 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
               subtitle="FII/DII cash flow, India VIX regime, Nifty PCR and max pain. Live Dhan option chain and NSE FII/DII when credentials or the exchange feed are available."
             >
               <Derivatives data={data.derivatives} />
+            </Section>
+            <Section
+              id="ladder"
+              kicker="F&O"
+              title="Nifty option OI ladder"
+              subtitle="Call OI, strike, put OI around ATM. Highlighted row is at-the-money. Walls are the strikes with the most OI."
+            >
+              <OptionLadder data={data.derivatives} />
             </Section>
             <Section
               id="gauges"
@@ -419,7 +462,7 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
         onDisconnectDhan={disconnectDhan}
       />
 
-      <Drawer open={Boolean(row)} onClose={() => setOpenSymbol(null)} widthClass="max-w-lg">
+      <Drawer open={Boolean(row)} onClose={() => setOpenSymbol(null)} widthClass="max-w-xl">
         {row ? (
           <>
             <div className="p-4 pr-12">
@@ -436,6 +479,7 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
                 <p className="font-mono text-3xl tabular-nums">{inr(row.cmp)}</p>
                 <Chg value={row.change1d} />
               </div>
+              <StockChart points={row.chart ?? []} emas={row.emas} />
               <EmaPills emas={row.emas} />
               <div className="flex flex-wrap gap-1">
                 {row.patterns.map((p) => (
@@ -448,9 +492,11 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
                 <Meta k="RSI(14)" v={row.rsi.toFixed(1)} />
                 <Meta k="Vol spike" v={`${row.volSpike}x`} />
                 <Meta k="% vs 20 EMA" v={`${row.distFrom20Ema}%`} />
+                <Meta k="RS vs Nifty 1M" v={`${row.rsNifty}%`} />
+                <Meta k="Delivery" v={`${row.deliveryPct}%`} />
+                <Meta k="OI build" v={row.oiBuild.replace("-", " ")} />
                 <Meta k="Below 52W high" v={`${row.below52wHigh}%`} />
                 <Meta k="EMA stack" v={row.emaStack} />
-                <Meta k="Weekly stack" v={row.weeklyStack} />
               </div>
               <div>
                 <p className="mb-1 text-xs text-muted-foreground">Research note (private, this browser)</p>

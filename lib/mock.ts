@@ -284,6 +284,22 @@ export function demoPcrHistory(days: string[]): { date: string; pcr: number }[] 
   }));
 }
 
+export function demoDelivery(symbol: string): number {
+  const rand = mulberry32(hash(symbol + "del"));
+  return Number((28 + rand() * 42).toFixed(1));
+}
+
+export function demoOiBuild(
+  change1d: number,
+  volSpike: number,
+): "long-build" | "short-cover" | "short-build" | "long-unwind" | "neutral" {
+  if (change1d > 0.4 && volSpike >= 1.4) return "long-build";
+  if (change1d > 0.4 && volSpike <= 0.85) return "short-cover";
+  if (change1d < -0.4 && volSpike >= 1.4) return "short-build";
+  if (change1d < -0.4 && volSpike <= 0.85) return "long-unwind";
+  return "neutral";
+}
+
 export function earningsFor(symbol: string, lastDate: string): {
   prev: string;
   next: string;
