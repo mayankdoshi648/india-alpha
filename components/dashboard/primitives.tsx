@@ -61,20 +61,28 @@ export function Chg({ value, suffix = "%" }: { value: number; suffix?: string })
 export function EmaPills({ emas }: { emas: EmaStatus[] }) {
   return (
     <div className="flex flex-wrap gap-1">
-      {emas.map((e) => (
-        <span
-          key={e.period}
-          className={cn(
-            "rounded border px-1.5 py-0.5 font-mono text-[10px] tabular-nums",
-            e.above
-              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
-              : "border-rose-500/40 bg-rose-500/10 text-rose-300",
-          )}
-          title={`${e.period} EMA ${e.value}`}
-        >
-          {e.period}
-        </span>
-      ))}
+      {emas.map((e) => {
+        const dist = Number.isFinite(e.distPct) ? e.distPct : null;
+        return (
+          <span
+            key={e.period}
+            className={cn(
+              "rounded border px-1.5 py-0.5 font-mono text-[10px] tabular-nums",
+              e.above
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                : "border-rose-500/40 bg-rose-500/10 text-rose-300",
+            )}
+            title={`${e.period} EMA ${e.value}${dist != null ? ` · close ${signed(dist)}% ${e.above ? "above" : "below"}` : ""}`}
+          >
+            {e.period}
+            {dist != null ? (
+              <span className="ml-0.5">
+                {signed(dist, 1)}%
+              </span>
+            ) : null}
+          </span>
+        );
+      })}
     </div>
   );
 }

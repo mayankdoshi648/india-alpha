@@ -113,7 +113,7 @@ export function emaStatuses(
     (period) => {
       const series = ema(closes, period);
       const value = last(series);
-      return { period, value: round(value, 2), above: price >= value };
+      return { period, value: round(value, 2), above: price >= value, distPct: round(pct(value, price), 2) };
     },
   );
 }

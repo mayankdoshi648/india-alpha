@@ -127,6 +127,7 @@ export interface EmaStatus {
   period: number;
   value: number;
   above: boolean;
+  distPct: number;
 }
 
 export interface IndexTile {
