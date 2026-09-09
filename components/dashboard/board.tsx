@@ -10,7 +10,7 @@ import type {
   StockRow,
 } from "@/lib/types";
 import { PATTERN_LABEL, compact, inr, signed, SWING_STATUS } from "@/lib/format";
-import { Chg, EmaPills } from "@/components/dashboard/primitives";
+import { Chg, EmaPills, Sparkline } from "@/components/dashboard/primitives";
 import { SectorMatrix } from "@/components/dashboard/sector-matrix";
 import { UniverseTable } from "@/components/dashboard/universe-table";
 import { DeskErrorBoundary } from "@/components/dashboard/error-boundary";
@@ -51,17 +51,17 @@ export function WatchStrip({ data }: { data: DashboardSnapshot }) {
   const bank = data.indices.find((i) => i.id === "banknifty");
   const lead =
     data.universe === "nifty500" && nifty500
-      ? { k: "Nifty 500", v: inr(nifty500.cmp, 2), chg: nifty500.changePct }
+      ? { k: "Nifty 500", v: inr(nifty500.cmp, 2), chg: nifty500.changePct, spark: nifty500.spark }
       : nifty
-        ? { k: "Nifty 50", v: inr(nifty.cmp, 2), chg: nifty.changePct }
+        ? { k: "Nifty 50", v: inr(nifty.cmp, 2), chg: nifty.changePct, spark: nifty.spark }
         : null;
   const cards = [
     lead,
-    bank ? { k: "Bank Nifty", v: inr(bank.cmp, 2), chg: bank.changePct } : null,
+    bank ? { k: "Bank Nifty", v: inr(bank.cmp, 2), chg: bank.changePct, spark: bank.spark } : null,
     data.universe === "nifty500" && nifty
-      ? { k: "Nifty 50", v: inr(nifty.cmp, 2), chg: nifty.changePct }
+      ? { k: "Nifty 50", v: inr(nifty.cmp, 2), chg: nifty.changePct, spark: nifty.spark }
       : nifty500
-        ? { k: "Nifty 500", v: inr(nifty500.cmp, 2), chg: nifty500.changePct }
+        ? { k: "Nifty 500", v: inr(nifty500.cmp, 2), chg: nifty500.changePct, spark: nifty500.spark }
         : null,
     { k: "India VIX", v: data.derivatives.indiaVix.toFixed(2), chg: data.derivatives.indiaVixChangePct },
     { k: "Nifty PCR", v: data.derivatives.niftyPcr.toFixed(2), chg: null as number | null },
@@ -71,7 +71,7 @@ export function WatchStrip({ data }: { data: DashboardSnapshot }) {
       chg: data.breadth.adRatio >= 1 ? 1 : -1,
     },
     { k: "FII net", v: `${compact(data.derivatives.fiiNet)} cr`, chg: data.derivatives.fiiNet },
-  ].filter(Boolean) as { k: string; v: string; chg: number | null }[];
+  ].filter(Boolean) as { k: string; v: string; chg: number | null; spark?: number[] }[];
 
   return (
     <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-7">
@@ -87,6 +87,9 @@ export function WatchStrip({ data }: { data: DashboardSnapshot }) {
           >
             <p className="text-[11px] text-slate-400">{c.k}</p>
             <p className="mt-0.5 font-mono text-xl tracking-tight text-white tabular-nums">{c.v}</p>
+            {c.spark && c.spark.length > 1 ? (
+              <Sparkline values={c.spark} width={88} height={22} />
+            ) : null}
             {c.chg !== null && c.k !== "Advance / Decline" && c.k !== "FII net" ? (
               <Chg value={c.chg} />
             ) : c.k === "FII net" && c.chg !== null ? (
@@ -116,8 +119,12 @@ function IndexList({ tiles }: { tiles: IndexTile[] }) {
             <p className="truncate text-[13px] font-medium text-white">{t.name}</p>
             <EmaPills emas={t.emas} />
           </div>
-          <p className="font-mono text-[15px] text-white tabular-nums">{inr(t.cmp, 0)}</p>
-          <Chg value={t.changePct} />
+          <Sparkline values={t.spark ?? []} width={72} height={24} />
+          <div className="text-right">
+            <p className="font-mono text-[15px] text-white tabular-nums">{inr(t.cmp, 2)}</p>
+            <Chg value={t.changePct} />
+            {t.asOf ? <p className="font-mono text-[10px] text-slate-500 tabular-nums">{t.asOf}</p> : null}
+          </div>
         </div>
       ))}
     </div>
