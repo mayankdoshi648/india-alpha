@@ -8,7 +8,7 @@ Quotes, historical candles and the Nifty option chain come from **DhanHQ** when 
 
 ```bash
 npm install
-cp .env.example .env.local   # optional — add Dhan keys for live data
+cp .env.example .env.local   # optional server-side fallback; you can also paste Dhan keys on the page
 npm run dev
 ```
 
@@ -22,7 +22,7 @@ npm run build && npm run start
 
 ## DhanHQ
 
-Create an API access token in the Dhan web terminal, then set:
+Paste your access token and client ID in the **DhanHQ API keys** section on the desk (or in Configure). They stay in this browser and are sent with each refresh. `.env.local` still works as a server-side fallback:
 
 ```
 DHAN_ACCESS_TOKEN=your_jwt

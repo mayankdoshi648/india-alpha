@@ -1,10 +1,11 @@
 "use client";
 
-import type { StrategySettings } from "@/lib/types";
+import type { DhanCredentials, StrategySettings } from "@/lib/types";
 import { STRATEGY_TEMPLATES } from "@/lib/settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Drawer } from "@/components/dashboard/primitives";
+import { DhanConnect } from "@/components/dashboard/dhan-connect";
 
 export function SettingsPanel({
   open,
@@ -12,27 +13,51 @@ export function SettingsPanel({
   settings,
   onChange,
   onApplyTemplate,
+  dhan,
+  dhanConnected,
+  dhanBusy,
+  dhanStatus,
+  dhanError,
+  onConnectDhan,
+  onDisconnectDhan,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   settings: StrategySettings;
   onChange: (s: StrategySettings) => void;
   onApplyTemplate: (id: string) => void;
+  dhan: DhanCredentials;
+  dhanConnected: boolean;
+  dhanBusy: boolean;
+  dhanStatus: string | null;
+  dhanError: string | null;
+  onConnectDhan: (creds: DhanCredentials) => Promise<void>;
+  onDisconnectDhan: () => void;
 }) {
   const set = (key: keyof StrategySettings, value: number | string) => {
     onChange({ ...settings, [key]: value });
   };
 
   return (
-    <Drawer open={open} onClose={() => onOpenChange(false)} widthClass="max-w-md">
+    <Drawer open={open} onClose={() => onOpenChange(false)} widthClass="max-w-lg">
       <div className="p-4 pr-12">
         <p className="text-[11px] tracking-[0.18em] text-cyan-400/80 uppercase">Configure</p>
         <h2 className="text-lg font-medium">Strategy settings</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          EMA, RSI, volume spike and breakout rules apply to the whole desk. Templates overwrite the current set. Closing this panel recalculates.
+          Dhan keys, EMA, RSI, volume spike and breakout rules apply to the whole desk. Templates overwrite strategy fields only. Closing this panel recalculates.
         </p>
       </div>
       <div className="space-y-5 px-4 pb-8">
+        <DhanConnect
+          compact
+          stored={dhan}
+          liveConnected={dhanConnected}
+          busy={dhanBusy}
+          status={dhanStatus}
+          error={dhanError}
+          onConnect={onConnectDhan}
+          onDisconnect={onDisconnectDhan}
+        />
         <div className="flex flex-wrap gap-2">
           {STRATEGY_TEMPLATES.map((t) => (
             <Button key={t.id} size="sm" variant="outline" onClick={() => onApplyTemplate(t.id)}>

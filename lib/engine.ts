@@ -28,6 +28,7 @@ import {
 import {
   dhanConfigured,
   dhanExpiryList,
+  dhanFingerprint,
   dhanHistorical,
   dhanIndexLtp,
   dhanLtp,
@@ -58,7 +59,7 @@ import type {
   UniverseId,
 } from "@/lib/types";
 
-const CACHE_VER = 3;
+const CACHE_VER = 4;
 const cache = new Map<string, { at: number; value: DashboardSnapshot }>();
 
 function overlayLast(bars: OhlcBar[], close: number, changePct?: number): OhlcBar[] {
@@ -236,7 +237,7 @@ export async function buildSnapshot(
   partialSettings?: Partial<StrategySettings>,
 ): Promise<DashboardSnapshot> {
   const settings = mergeSettings(partialSettings);
-  const key = `${CACHE_VER}:${universe}:${JSON.stringify(settings)}`;
+  const key = `${CACHE_VER}:${universe}:${JSON.stringify(settings)}:${dhanFingerprint()}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < 45_000) return hit.value;
 

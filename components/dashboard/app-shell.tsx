@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { DashboardSnapshot, StrategySettings, UniverseId } from "@/lib/types";
+import type { DashboardSnapshot, DhanCredentials, StrategySettings, UniverseId } from "@/lib/types";
+import { DhanConnect } from "@/components/dashboard/dhan-connect";
 import { DEFAULT_SETTINGS, STRATEGY_TEMPLATES } from "@/lib/settings";
 import { IndexTiles } from "@/components/dashboard/index-tiles";
 import { SetupRadar } from "@/components/dashboard/setup-radar";
@@ -17,6 +18,7 @@ import { PATTERN_LABEL, inr } from "@/lib/format";
 import { Chg, EmaPills } from "@/components/dashboard/primitives";
 import {
   Activity,
+  KeyRound,
   Landmark,
   LoaderCircle,
   RefreshCw,
@@ -42,6 +44,8 @@ const EMPTY_WATCH: WatchStore = {
   notes: {},
 };
 
+const EMPTY_DHAN: DhanCredentials = { accessToken: "", clientId: "" };
+
 export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
   const [universe, setUniverse] = useState<UniverseId>(initial.universe);
   const [settings, setSettings] = useState<StrategySettings>(DEFAULT_SETTINGS);
@@ -51,6 +55,10 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [watch, setWatch] = useState<WatchStore>(EMPTY_WATCH);
   const [openSymbol, setOpenSymbol] = useState<string | null>(null);
+  const [dhan, setDhan] = useState<DhanCredentials>(EMPTY_DHAN);
+  const [dhanBusy, setDhanBusy] = useState(false);
+  const [dhanStatus, setDhanStatus] = useState<string | null>(null);
+  const [dhanError, setDhanError] = useState<string | null>(null);
 
   /* eslint-disable react-hooks/set-state-in-effect -- hydrate private lists from localStorage after paint */
   useEffect(() => {
@@ -58,10 +66,24 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
       const raw = localStorage.getItem("imd-watch");
       if (raw) setWatch({ ...EMPTY_WATCH, ...JSON.parse(raw) });
       const s = localStorage.getItem("imd-settings");
-      if (s) setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(s) });
+      let nextSettings = DEFAULT_SETTINGS;
+      if (s) {
+        nextSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(s) };
+        setSettings(nextSettings);
+      }
+      const d = localStorage.getItem("imd-dhan");
+      if (d) {
+        const parsed = JSON.parse(d) as DhanCredentials;
+        if (parsed.accessToken && parsed.clientId) {
+          setDhan(parsed);
+          void loadTape(universe, nextSettings, parsed);
+        }
+      }
     } catch {
       // ignore
     }
+    // First hydrate only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -70,14 +92,22 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
     localStorage.setItem("imd-watch", JSON.stringify(next));
   };
 
-  const load = useCallback(async (u = universe, s = settings) => {
+  const loadTape = useCallback(async (
+    u = universe,
+    s = settings,
+    creds = dhan,
+  ) => {
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(`/api/market?universe=${u}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ universe: u, settings: s }),
+        body: JSON.stringify({
+          universe: u,
+          settings: s,
+          dhan: creds.accessToken && creds.clientId ? creds : undefined,
+        }),
         signal: AbortSignal.timeout(25_000),
       });
       if (!res.ok) throw new Error(`Market API ${res.status}`);
@@ -88,14 +118,17 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
     } finally {
       setLoading(false);
     }
-  }, [universe, settings]);
+  }, [universe, settings, dhan]);
+
+  const load = loadTape;
 
   const watchSet = useMemo(
     () => new Set(Object.values(watch.lists).flat()),
     [watch],
   );
 
-  const row = data?.stocks.find((s) => s.symbol === openSymbol) ?? null;
+  const dhanLive = data.sources.quotes === "dhan" || data.sources.derivatives === "dhan";
+  const row = data.stocks.find((s) => s.symbol === openSymbol) ?? null;
 
   function toggleWatch(symbol: string) {
     persistWatch((() => {
@@ -117,6 +150,50 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
   function saveSettings(next: StrategySettings) {
     setSettings(next);
     localStorage.setItem("imd-settings", JSON.stringify(next));
+  }
+
+  async function connectDhan(creds: DhanCredentials) {
+    setDhanBusy(true);
+    setDhanError(null);
+    setDhanStatus(null);
+    setDhan(creds);
+    localStorage.setItem("imd-dhan", JSON.stringify(creds));
+    try {
+      const res = await fetch("/api/dhan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(creds),
+        signal: AbortSignal.timeout(12_000),
+      });
+      const json = (await res.json()) as { ok?: boolean; error?: string; nifty?: number | null };
+      if (json.ok) {
+        setDhanStatus(
+          typeof json.nifty === "number"
+            ? `Dhan accepted these keys. Nifty LTP ${json.nifty.toFixed(2)}.`
+            : "Dhan accepted these keys. Refreshing the tape…",
+        );
+      } else {
+        setDhanError(json.error || "Dhan rejected these credentials. Keys are still saved in this browser.");
+      }
+      await loadTape(universe, settings, creds);
+    } catch (e) {
+      setDhanError(
+        e instanceof Error
+          ? `${e.message} Keys are saved in this browser; the tape will retry Dhan on refresh.`
+          : "Could not reach Dhan. Keys are saved in this browser.",
+      );
+      await loadTape(universe, settings, creds);
+    } finally {
+      setDhanBusy(false);
+    }
+  }
+
+  function disconnectDhan() {
+    setDhan(EMPTY_DHAN);
+    localStorage.removeItem("imd-dhan");
+    setDhanStatus("Disconnected. Using NSE or the local tape.");
+    setDhanError(null);
+    void loadTape(universe, settings, EMPTY_DHAN);
   }
 
   return (
@@ -176,6 +253,14 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
               ))}
             </select>
             <SourceBadge data={data} />
+            <a
+              id="dhan-keys-link"
+              href="#dhan"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-cyan-400/40 px-3 text-sm text-cyan-200 hover:bg-cyan-400/10"
+            >
+              <KeyRound className="size-3.5" />
+              Dhan keys
+            </a>
             <Button size="sm" variant="outline" onClick={() => void load()} disabled={loading}>
               {loading ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}
               Refresh
@@ -193,6 +278,7 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
         </div>
         <nav className="mx-auto hidden max-w-[1600px] gap-3 overflow-x-auto px-4 pb-2 text-[11px] text-muted-foreground md:flex">
           {[
+            ["dhan", "Dhan"],
             ["indices", "Indices"],
             ["setups", "Setups"],
             ["derivatives", "Institutional F&O"],
@@ -220,6 +306,22 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
             Recalculating {universe === "nifty50" ? "Nifty 50" : "Nifty 500"}…
           </div>
         ) : null}
+        <Section
+          id="dhan"
+          kicker="Data feed"
+          title="DhanHQ API keys"
+          subtitle="Enter the access token and client ID from the Dhan web terminal. They stay in this browser so you do not need a .env file."
+        >
+          <DhanConnect
+            stored={dhan}
+            liveConnected={dhanLive}
+            busy={dhanBusy}
+            status={dhanStatus}
+            error={dhanError}
+            onConnect={connectDhan}
+            onDisconnect={disconnectDhan}
+          />
+        </Section>
         <>
             <Section
               id="indices"
@@ -283,14 +385,6 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
             >
               <BreadthSection breadth={data.breadth} trend={data.trend} />
             </Section>
-            {!data.dhanConfigured ? (
-              <Panel className="text-sm text-muted-foreground">
-                DhanHQ is not connected. Add <code className="text-cyan-300">DHAN_ACCESS_TOKEN</code> and{" "}
-                <code className="text-cyan-300">DHAN_CLIENT_ID</code> to <code>.env.local</code> to pull live quotes,
-                historical candles and the Nifty option chain. NSE FII/DII and indices are used when reachable;
-                otherwise the desk runs on a deterministic September 2026 market tape so every panel stays usable.
-              </Panel>
-            ) : null}
         </>
       </main>
 
@@ -303,6 +397,13 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
         settings={settings}
         onChange={saveSettings}
         onApplyTemplate={applyTemplate}
+        dhan={dhan}
+        dhanConnected={dhanLive}
+        dhanBusy={dhanBusy}
+        dhanStatus={dhanStatus}
+        dhanError={dhanError}
+        onConnectDhan={connectDhan}
+        onDisconnectDhan={disconnectDhan}
       />
 
       <Drawer open={Boolean(row)} onClose={() => setOpenSymbol(null)} widthClass="max-w-lg">

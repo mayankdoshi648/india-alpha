@@ -1,17 +1,57 @@
-import type { OhlcBar } from "@/lib/types";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { createHash } from "node:crypto";
+import type { DhanCredentials, OhlcBar } from "@/lib/types";
 
 const BASE = "https://api.dhan.co/v2";
+const als = new AsyncLocalStorage<DhanCredentials>();
+
+function envCreds(): DhanCredentials {
+  return {
+    accessToken: process.env.DHAN_ACCESS_TOKEN?.trim() ?? "",
+    clientId: process.env.DHAN_CLIENT_ID?.trim() ?? "",
+  };
+}
+
+export function sanitizeDhanInput(raw?: Partial<DhanCredentials> | null): DhanCredentials | undefined {
+  const accessToken = raw?.accessToken?.trim() ?? "";
+  const clientId = raw?.clientId?.trim() ?? "";
+  if (!accessToken || !clientId) return undefined;
+  return { accessToken, clientId };
+}
+
+export function runWithDhan<T>(creds: DhanCredentials | undefined, fn: () => T): T {
+  const env = envCreds();
+  return als.run(
+    {
+      accessToken: creds?.accessToken?.trim() || env.accessToken,
+      clientId: creds?.clientId?.trim() || env.clientId,
+    },
+    fn,
+  );
+}
+
+export function activeDhan(): DhanCredentials {
+  return als.getStore() ?? envCreds();
+}
 
 export function dhanConfigured(): boolean {
-  return Boolean(process.env.DHAN_ACCESS_TOKEN && process.env.DHAN_CLIENT_ID);
+  const c = activeDhan();
+  return Boolean(c.accessToken && c.clientId);
+}
+
+export function dhanFingerprint(): string {
+  const c = activeDhan();
+  if (!c.accessToken) return "none";
+  return createHash("sha256").update(`${c.clientId}:${c.accessToken}`).digest("hex").slice(0, 12);
 }
 
 function headers(): HeadersInit {
+  const c = activeDhan();
   return {
     "Content-Type": "application/json",
     Accept: "application/json",
-    "access-token": process.env.DHAN_ACCESS_TOKEN ?? "",
-    "client-id": process.env.DHAN_CLIENT_ID ?? "",
+    "access-token": c.accessToken,
+    "client-id": c.clientId,
   };
 }
 

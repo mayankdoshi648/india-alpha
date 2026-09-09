@@ -27,6 +27,11 @@ export interface UniverseStock {
   avgVolume: number;
 }
 
+export interface DhanCredentials {
+  accessToken: string;
+  clientId: string;
+}
+
 export interface StrategySettings {
   emaFast: number;
   emaShort: number;
