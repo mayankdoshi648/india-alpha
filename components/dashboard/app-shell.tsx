@@ -156,33 +156,46 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
     setDhanBusy(true);
     setDhanError(null);
     setDhanStatus(null);
-    setDhan(creds);
-    localStorage.setItem("imd-dhan", JSON.stringify(creds));
     try {
       const res = await fetch("/api/dhan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(creds),
-        signal: AbortSignal.timeout(12_000),
+        signal: AbortSignal.timeout(15_000),
       });
-      const json = (await res.json()) as { ok?: boolean; error?: string; nifty?: number | null };
-      if (json.ok) {
-        setDhanStatus(
-          typeof json.nifty === "number"
-            ? `Dhan accepted these keys. Nifty LTP ${json.nifty.toFixed(2)}.`
-            : "Dhan accepted these keys. Refreshing the tape…",
-        );
-      } else {
-        setDhanError(json.error || "Dhan rejected these credentials. Keys are still saved in this browser.");
+      const json = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        nifty?: number | null;
+        clientId?: string;
+        tokenValidity?: string | null;
+        dataPlan?: string | null;
+        name?: string | null;
+      };
+      if (!json.ok) {
+        setDhanError(json.error || "Dhan rejected these credentials.");
+        return;
       }
-      await loadTape(universe, settings, creds);
+      const saved: DhanCredentials = {
+        accessToken: creds.accessToken.trim(),
+        clientId: json.clientId || creds.clientId.trim(),
+      };
+      setDhan(saved);
+      localStorage.setItem("imd-dhan", JSON.stringify(saved));
+      const bits = [
+        json.name ? `Signed in as ${json.name}` : "Dhan accepted this token",
+        typeof json.nifty === "number" ? `Nifty LTP ${json.nifty.toFixed(2)}` : null,
+        json.tokenValidity ? `token until ${json.tokenValidity}` : null,
+        json.dataPlan ? `data plan ${json.dataPlan}` : null,
+      ].filter(Boolean);
+      setDhanStatus(bits.join(" · "));
+      await loadTape(universe, settings, saved);
     } catch (e) {
       setDhanError(
         e instanceof Error
-          ? `${e.message} Keys are saved in this browser; the tape will retry Dhan on refresh.`
-          : "Could not reach Dhan. Keys are saved in this browser.",
+          ? e.message
+          : "Could not reach Dhan. Check the token and try again.",
       );
-      await loadTape(universe, settings, creds);
     } finally {
       setDhanBusy(false);
     }
@@ -310,7 +323,7 @@ export function MarketDesk({ initial }: { initial: DashboardSnapshot }) {
           id="dhan"
           kicker="Data feed"
           title="DhanHQ API keys"
-          subtitle="Enter the access token and client ID from the Dhan web terminal. They stay in this browser so you do not need a .env file."
+          subtitle="Paste a fresh 24-hour JWT from web.dhan.co → My Profile → Access DhanHQ APIs. Client ID is optional."
         >
           <DhanConnect
             stored={dhan}

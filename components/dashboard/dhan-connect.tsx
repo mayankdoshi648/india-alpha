@@ -56,7 +56,7 @@ export function DhanConnect({
             <p className="text-[11px] tracking-[0.18em] text-cyan-400/80 uppercase">DhanHQ</p>
             <h2 className="text-base font-medium">Connect live quotes on this page</h2>
             <p className="text-sm text-muted-foreground">
-              Paste your Dhan access token and client ID. They stay in this browser and are sent only to this desk — not written to a file.
+              Paste the 24-hour JWT from web.dhan.co → My Profile → Access DhanHQ APIs. Client ID is optional — we read it from the token. Do not paste the API key.
             </p>
           </div>
         </div>
@@ -69,7 +69,7 @@ export function DhanConnect({
               type={showToken ? "text" : "password"}
               autoComplete="off"
               spellCheck={false}
-              placeholder="Paste Dhan access token"
+              placeholder="JWT access token (starts with eyJ)"
               value={draft.accessToken}
               onChange={(e) => setDraft((d) => ({ ...d, accessToken: e.target.value }))}
             />
@@ -81,7 +81,7 @@ export function DhanConnect({
               type="text"
               autoComplete="off"
               spellCheck={false}
-              placeholder="Dhan client ID"
+              placeholder="Numeric Client ID (optional)"
               value={draft.clientId}
               onChange={(e) => setDraft((d) => ({ ...d, clientId: e.target.value }))}
             />
@@ -93,7 +93,7 @@ export function DhanConnect({
             id={compact ? "dhan-save-compact" : "dhan-save"}
             type="submit"
             size="sm"
-            disabled={busy || !draft.accessToken.trim() || !draft.clientId.trim()}
+            disabled={busy || !draft.accessToken.trim()}
           >
             {busy ? <LoaderCircle className="animate-spin" /> : <PlugZap />}
             {liveConnected ? "Reconnect" : "Connect Dhan"}
@@ -139,7 +139,7 @@ export function DhanConnect({
                 ? "Dhan is connected. Quotes, candles and the Nifty option chain use this account."
                 : savedHere
                   ? "Keys are saved in this browser. Connect to verify them against Dhan."
-                  : "Without Dhan, the desk uses NSE when reachable, otherwise the local 8 Sep 2026 tape."}
+                  : "Without Dhan, the desk uses NSE when reachable, otherwise the local 8 Sep 2026 tape. Tokens last 24 hours."}
         </p>
       </form>
     </Panel>

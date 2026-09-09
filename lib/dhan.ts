@@ -12,19 +12,66 @@ function envCreds(): DhanCredentials {
   };
 }
 
+export function cleanDhanSecret(value?: string | null): string {
+  if (!value) return "";
+  return value
+    .replace(/^\uFEFF/, "")
+    .trim()
+    .replace(/^["']+|["']+$/g, "")
+    .replace(/^Bearer\s+/i, "")
+    .replace(/[\r\n\s]+/g, "");
+}
+
+export function looksLikeJwt(value: string): boolean {
+  return /^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(value);
+}
+
+function clientIdFromJwt(token: string): string {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split(".")[1] ?? "", "base64url").toString("utf8")) as Record<string, unknown>;
+    const id = payload.dhanClientId ?? payload.dhanClientID ?? payload.clientId ?? payload.client_id;
+    return typeof id === "string" || typeof id === "number" ? String(id).trim() : "";
+  } catch {
+    return "";
+  }
+}
+
 export function sanitizeDhanInput(raw?: Partial<DhanCredentials> | null): DhanCredentials | undefined {
-  const accessToken = raw?.accessToken?.trim() ?? "";
-  const clientId = raw?.clientId?.trim() ?? "";
-  if (!accessToken || !clientId) return undefined;
+  let accessToken = cleanDhanSecret(raw?.accessToken);
+  let clientId = cleanDhanSecret(raw?.clientId);
+  if (looksLikeJwt(clientId) && !looksLikeJwt(accessToken)) {
+    [accessToken, clientId] = [clientId, accessToken];
+  }
+  if (!accessToken) return undefined;
+  if (!clientId) clientId = clientIdFromJwt(accessToken);
   return { accessToken, clientId };
+}
+
+export function explainDhanAuthError(raw: string): string {
+  if (/806|DH-902|not subscribed/i.test(raw)) {
+    return "This access token is valid, but Data APIs are not subscribed. In web.dhan.co open My Profile → Access DhanHQ APIs and subscribe to the data plan.";
+  }
+  if (/807|expired/i.test(raw)) {
+    return "This Dhan access token has expired. Generate a new 24-hour Access Token at web.dhan.co → My Profile → Access DhanHQ APIs.";
+  }
+  if (/810/.test(raw)) {
+    return "Dhan rejected the Client ID. Leave Client ID blank — the desk fills it from your token — or paste the numeric dhanClientId from My Profile (not UCC).";
+  }
+  if (/809/.test(raw)) {
+    return "Dhan rejected the access token. Paste a fresh JWT Access Token (it starts with eyJ), not the API key or API secret.";
+  }
+  if (/808|DH-901|Authentication Failed/i.test(raw)) {
+    return "Dhan rejected this Client ID or access token. Use a fresh 24-hour Access Token from web.dhan.co → My Profile → Access DhanHQ APIs, and the numeric Client ID shown there. Do not paste the API key. Tokens expire in 24 hours.";
+  }
+  return raw.slice(0, 240);
 }
 
 export function runWithDhan<T>(creds: DhanCredentials | undefined, fn: () => T): T {
   const env = envCreds();
   return als.run(
     {
-      accessToken: creds?.accessToken?.trim() || env.accessToken,
-      clientId: creds?.clientId?.trim() || env.clientId,
+      accessToken: cleanDhanSecret(creds?.accessToken) || env.accessToken,
+      clientId: cleanDhanSecret(creds?.clientId) || env.clientId,
     },
     fn,
   );
@@ -36,7 +83,7 @@ export function activeDhan(): DhanCredentials {
 
 export function dhanConfigured(): boolean {
   const c = activeDhan();
-  return Boolean(c.accessToken && c.clientId);
+  return Boolean(c.accessToken);
 }
 
 export function dhanFingerprint(): string {
@@ -52,7 +99,13 @@ function headers(): HeadersInit {
     Accept: "application/json",
     "access-token": c.accessToken,
     "client-id": c.clientId,
+    dhanClientId: c.clientId,
   };
+}
+
+async function readDhanError(res: Response, path: string): Promise<never> {
+  const text = await res.text();
+  throw new Error(explainDhanAuthError(`Dhan ${path} ${res.status}: ${text}`));
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
@@ -61,13 +114,33 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     headers: headers(),
     body: JSON.stringify(body),
     cache: "no-store",
-    signal: AbortSignal.timeout(5000),
+    signal: AbortSignal.timeout(8000),
   });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Dhan ${path} ${res.status}: ${text.slice(0, 180)}`);
-  }
+  if (!res.ok) await readDhanError(res, path);
   return (await res.json()) as T;
+}
+
+export interface DhanProfile {
+  dhanClientId?: string;
+  dhanClientName?: string;
+  tokenValidity?: string;
+  dataPlan?: string;
+  dataValidity?: string;
+}
+
+export async function dhanProfile(accessToken: string): Promise<DhanProfile> {
+  const token = cleanDhanSecret(accessToken);
+  const res = await fetch(`${BASE}/profile`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "access-token": token,
+    },
+    cache: "no-store",
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) await readDhanError(res, "/profile");
+  return (await res.json()) as DhanProfile;
 }
 
 export async function dhanLtp(ids: number[]): Promise<Record<string, number>> {
