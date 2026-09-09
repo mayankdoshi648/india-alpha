@@ -1,10 +1,8 @@
 import {
-  dhanIndexLtp,
-  dhanProfile,
   dhanRenewToken,
+  dhanVerifyDataAccess,
   explainDhanAuthError,
   looksLikeJwt,
-  runWithDhan,
   sanitizeDhanInput,
 } from "@/lib/dhan";
 import { NextResponse } from "next/server";
@@ -45,41 +43,38 @@ export async function POST(req: Request) {
         );
       }
       const renewed = await dhanRenewToken(creds.accessToken, creds.clientId);
-      const accessToken = renewed.accessToken;
-      const profile = await dhanProfile(accessToken);
-      const clientId = profile.dhanClientId?.trim() || renewed.clientId || creds.clientId;
+      const verified = await dhanVerifyDataAccess({
+        accessToken: renewed.accessToken,
+        clientId: renewed.clientId || creds.clientId,
+      });
       return NextResponse.json({
         ok: true,
         renewed: true,
-        accessToken,
-        clientId,
-        tokenValidity: profile.tokenValidity ?? renewed.expiryTime ?? null,
-        dataPlan: profile.dataPlan ?? null,
-        name: profile.dhanClientName ?? null,
+        accessToken: renewed.accessToken,
+        clientId: verified.clientId || creds.clientId,
+        tokenValidity: verified.profile?.tokenValidity ?? renewed.expiryTime ?? null,
+        dataPlan: verified.profile?.dataPlan ?? null,
+        name: verified.profile?.dhanClientName ?? null,
       });
     }
-    const profile = await dhanProfile(creds.accessToken);
-    const clientId = profile.dhanClientId?.trim() || creds.clientId;
-    if (!clientId) {
+    const verified = await dhanVerifyDataAccess(creds);
+    const clientId = verified.clientId;
+    if (!clientId && verified.nifty == null) {
       return NextResponse.json(
         {
           ok: false,
-          error: "Token is valid but Dhan did not return a Client ID. Paste the numeric Client ID from My Profile.",
+          error: "Token reached Data APIs but Dhan did not return a Client ID. Paste the numeric Client ID from My Profile.",
         },
         { status: 400 },
       );
     }
-    const nifty = await runWithDhan({ accessToken: creds.accessToken, clientId }, async () => {
-      const ltp = await dhanIndexLtp([13]);
-      return ltp["13"] ?? Object.values(ltp)[0] ?? null;
-    });
     return NextResponse.json({
       ok: true,
-      nifty,
+      nifty: verified.nifty,
       clientId,
-      tokenValidity: profile.tokenValidity ?? null,
-      dataPlan: profile.dataPlan ?? null,
-      name: profile.dhanClientName ?? null,
+      tokenValidity: verified.profile?.tokenValidity ?? null,
+      dataPlan: verified.profile?.dataPlan ?? null,
+      name: verified.profile?.dhanClientName ?? null,
     });
   } catch (e) {
     const message = explainDhanAuthError(e instanceof Error ? e.message : "Dhan rejected these credentials");
