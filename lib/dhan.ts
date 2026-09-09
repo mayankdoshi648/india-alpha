@@ -143,6 +143,40 @@ export async function dhanProfile(accessToken: string): Promise<DhanProfile> {
   return (await res.json()) as DhanProfile;
 }
 
+/** Extends a still-valid web JWT by 24h. Fails once the token has already expired. */
+export async function dhanRenewToken(
+  accessToken: string,
+  clientId: string,
+): Promise<{ accessToken: string; expiryTime?: string; clientId?: string }> {
+  const token = cleanDhanSecret(accessToken);
+  const id = cleanDhanSecret(clientId);
+  const res = await fetch(`${BASE}/RenewToken`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "access-token": token,
+      "client-id": id,
+      dhanClientId: id,
+    },
+    cache: "no-store",
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) await readDhanError(res, "/RenewToken");
+  const json = (await res.json()) as {
+    accessToken?: string;
+    access_token?: string;
+    expiryTime?: string;
+    dhanClientId?: string;
+  };
+  const next = cleanDhanSecret(json.accessToken || json.access_token);
+  if (!looksLikeJwt(next)) throw new Error("Dhan did not return a renewed access token.");
+  return {
+    accessToken: next,
+    expiryTime: json.expiryTime,
+    clientId: json.dhanClientId?.trim(),
+  };
+}
+
 export async function dhanLtp(ids: number[]): Promise<Record<string, number>> {
   const unique = [...new Set(ids.filter((id) => id > 0))];
   const out: Record<string, number> = {};

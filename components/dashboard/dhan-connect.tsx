@@ -56,7 +56,9 @@ export function DhanConnect({
             <p className="text-[11px] tracking-[0.18em] text-cyan-400/80 uppercase">DhanHQ</p>
             <h2 className="text-base font-medium">Connect live quotes on this page</h2>
             <p className="text-sm text-muted-foreground">
-              Paste the 24-hour JWT from web.dhan.co → My Profile → Access DhanHQ APIs. Client ID is optional — we read it from the token. Do not paste the API key.
+              Paste the 24-hour JWT from web.dhan.co → My Profile → Access DhanHQ APIs. The desk renews it automatically
+              while it is still valid — open the page once a day and you do not need to paste again. Client ID is optional.
+              Do not paste the API key.
             </p>
           </div>
         </div>

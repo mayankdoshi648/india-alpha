@@ -22,7 +22,11 @@ npm run build && npm run start
 
 ## DhanHQ
 
-Paste the 24-hour **Access Token** (JWT, starts with `eyJ`) from [web.dhan.co](https://web.dhan.co) → My Profile → Access DhanHQ APIs. You also need the **Data APIs** plan subscribed there — a trading token without data returns Dhan 806. Client ID is optional — the desk reads it from Dhan. Do not paste the API key. `.env.local` still works as a server-side fallback:
+Paste the 24-hour **Access Token** (JWT, starts with `eyJ`) from [web.dhan.co](https://web.dhan.co) → My Profile → Access DhanHQ APIs. You also need the **Data APIs** plan subscribed there — a trading token without data returns Dhan 806. Client ID is optional — the desk reads it from Dhan. Do not paste the API key.
+
+Dhan does not issue a never-expiring data token. This desk calls Dhan’s **RenewToken** while the JWT is still valid, so if you open the page at least once a day you should not have to paste again. If the token expires unused, generate a new one on Dhan Web.
+
+`.env.local` still works as a server-side fallback:
 
 ```
 DHAN_ACCESS_TOKEN=your_jwt

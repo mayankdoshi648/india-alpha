@@ -14,7 +14,7 @@ import { Panel, Drawer } from "@/components/dashboard/primitives";
 import { Button } from "@/components/ui/button";
 import { PATTERN_LABEL, inr } from "@/lib/format";
 import { Chg, EmaPills } from "@/components/dashboard/primitives";
-import { indiaSession } from "@/lib/session";
+import { indiaSession, shouldRenewDhanToken } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import {
   KeyRound,
@@ -156,6 +156,37 @@ export function MarketDesk() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  useEffect(() => {
+    if (!dhan.accessToken || !dhan.clientId) return;
+    if (!shouldRenewDhanToken(dhan.accessToken)) return;
+    let cancelled = false;
+    void fetch("/api/dhan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...dhan, renew: true }),
+      signal: AbortSignal.timeout(15_000),
+    })
+      .then((r) => r.json())
+      .then((json: { ok?: boolean; accessToken?: string; clientId?: string; tokenValidity?: string | null }) => {
+        if (cancelled || !json.ok || !json.accessToken) return;
+        const saved: DhanCredentials = {
+          accessToken: json.accessToken,
+          clientId: json.clientId || dhan.clientId,
+        };
+        setDhan(saved);
+        localStorage.setItem("imd-dhan", JSON.stringify(saved));
+        setDhanStatus(
+          json.tokenValidity ? `Dhan token renewed · valid until ${json.tokenValidity}` : "Dhan token renewed for 24 hours",
+        );
+      })
+      .catch(() => {
+        // Keep the current token; user pastes again only if it expires unused.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dhan.accessToken, dhan.clientId]);
 
   useEffect(() => {
     if (!openSymbol) {
