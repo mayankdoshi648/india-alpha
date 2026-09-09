@@ -91,6 +91,42 @@ export async function nseOptionChain(symbol: string): Promise<{
   expiry: string;
   strikes: { strike: number; callOi: number; putOi: number; callIv: number; putIv: number }[];
 }> {
+  return nseChain(`/api/option-chain-indices?symbol=${encodeURIComponent(symbol)}`);
+}
+
+export async function nseEquityOptionChain(symbol: string): Promise<{
+  spot: number;
+  expiry: string;
+  strikes: {
+    strike: number;
+    callOi: number;
+    putOi: number;
+    callIv: number;
+    putIv: number;
+    callLtp?: number;
+    putLtp?: number;
+    callOiChg?: number;
+    putOiChg?: number;
+  }[];
+}> {
+  return nseChain(`/api/option-chain-equities?symbol=${encodeURIComponent(symbol)}`);
+}
+
+async function nseChain(path: string): Promise<{
+  spot: number;
+  expiry: string;
+  strikes: {
+    strike: number;
+    callOi: number;
+    putOi: number;
+    callIv: number;
+    putIv: number;
+    callLtp?: number;
+    putLtp?: number;
+    callOiChg?: number;
+    putOiChg?: number;
+  }[];
+}> {
   const json = await nseGet<{
     records?: {
       expiryDates?: string[];
@@ -98,15 +134,38 @@ export async function nseOptionChain(symbol: string): Promise<{
       data?: {
         strikePrice: number;
         expiryDate: string;
-        CE?: { openInterest?: number; impliedVolatility?: number };
-        PE?: { openInterest?: number; impliedVolatility?: number };
+        CE?: {
+          openInterest?: number;
+          changeinOpenInterest?: number;
+          impliedVolatility?: number;
+          lastPrice?: number;
+        };
+        PE?: {
+          openInterest?: number;
+          changeinOpenInterest?: number;
+          impliedVolatility?: number;
+          lastPrice?: number;
+        };
       }[];
     };
-  }>(`/api/option-chain-indices?symbol=${encodeURIComponent(symbol)}`);
+  }>(path);
   const expiry = json.records?.expiryDates?.[0] ?? "";
   const spot = json.records?.underlyingValue ?? 0;
-  const rows = (json.records?.data ?? []).filter((d) => d.expiryDate === expiry);
-  const byStrike = new Map<number, { strike: number; callOi: number; putOi: number; callIv: number; putIv: number }>();
+  const rows = (json.records?.data ?? []).filter((d) => !expiry || d.expiryDate === expiry);
+  const byStrike = new Map<
+    number,
+    {
+      strike: number;
+      callOi: number;
+      putOi: number;
+      callIv: number;
+      putIv: number;
+      callLtp?: number;
+      putLtp?: number;
+      callOiChg?: number;
+      putOiChg?: number;
+    }
+  >();
   for (const r of rows) {
     const cur = byStrike.get(r.strikePrice) ?? {
       strike: r.strikePrice,
@@ -114,11 +173,19 @@ export async function nseOptionChain(symbol: string): Promise<{
       putOi: 0,
       callIv: 0,
       putIv: 0,
+      callLtp: 0,
+      putLtp: 0,
+      callOiChg: 0,
+      putOiChg: 0,
     };
     cur.callOi += r.CE?.openInterest ?? 0;
     cur.putOi += r.PE?.openInterest ?? 0;
     cur.callIv = r.CE?.impliedVolatility ?? cur.callIv;
     cur.putIv = r.PE?.impliedVolatility ?? cur.putIv;
+    cur.callLtp = r.CE?.lastPrice ?? cur.callLtp;
+    cur.putLtp = r.PE?.lastPrice ?? cur.putLtp;
+    cur.callOiChg = (cur.callOiChg ?? 0) + (r.CE?.changeinOpenInterest ?? 0);
+    cur.putOiChg = (cur.putOiChg ?? 0) + (r.PE?.changeinOpenInterest ?? 0);
     byStrike.set(r.strikePrice, cur);
   }
   return { spot, expiry, strikes: [...byStrike.values()] };

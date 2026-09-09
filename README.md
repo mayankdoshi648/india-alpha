@@ -33,10 +33,10 @@ Used endpoints:
 
 - `POST /v2/marketfeed/ltp` — last prices
 - `POST /v2/charts/historical` — daily OHLC
-- `POST /v2/optionchain/expirylist` and `/v2/optionchain` — PCR and max pain
+- `POST /v2/optionchain/expirylist` and `/v2/optionchain` — index and stock PCR, max pain, ATM IV
 - Scrip master CSV for security IDs
 
-NSE (no key): `allIndices`, `fiidiiTradeData`, `option-chain-indices`.
+NSE (no key): `allIndices`, `fiidiiTradeData`, `option-chain-indices`, `option-chain-equities`.
 
 ## What is on the desk
 
@@ -45,8 +45,8 @@ The desk is **one page**. The first paint is a light shell; the tape loads from 
 1. **Watch strip** — Nifty, Bank Nifty, VIX, PCR, A/D, FII.
 2. **Index tape + mosaic + gainers/losers** — left column.
 3. **Sector rotation + universe** — centre.
-4. **Alerts, setups, OI ladder, EMA breadth** — right column.
-5. **Stock drawer** — click any name for chart and notes.
+4. **Alerts, setups, F&O (Nifty + stocks), EMA breadth** — right column.
+5. **Stock drawer** — click any name for chart, stock option chain, PCR/IV and notes.
 
 ## Scripts
 

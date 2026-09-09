@@ -212,6 +212,7 @@ export interface StockRow {
   vwapDist: number;
   daysAbove20: number;
   rv20: number;
+  fo: StockFo | null;
 }
 
 export interface OptionStrike {
@@ -220,6 +221,30 @@ export interface OptionStrike {
   putOi: number;
   callIv: number;
   putIv: number;
+  callLtp?: number;
+  putLtp?: number;
+  callOiChg?: number;
+  putOiChg?: number;
+}
+
+export interface StockFo {
+  listed: boolean;
+  symbol: string;
+  source: DataSource;
+  expiry: string;
+  pcr: number;
+  maxPain: number;
+  callWall: number;
+  putWall: number;
+  atmIv: number;
+  ivSkew: number;
+  straddle: number;
+  expectedMovePct: number;
+  futPremiumPct: number;
+  callOi: number;
+  putOi: number;
+  oiBuild: OiBuild;
+  ladder: OptionStrike[];
 }
 
 export interface MacroTile {

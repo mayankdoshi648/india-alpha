@@ -1,5 +1,6 @@
 import { INDEX_META, SECTOR_INDEX_BASE } from "@/lib/universe";
-import type { FlowDay, OhlcBar, UniverseStock } from "@/lib/types";
+import type { FlowDay, OhlcBar, StockFo, UniverseStock } from "@/lib/types";
+import { foFromChain, strikeStep } from "@/lib/fno";
 
 function mulberry32(seed: number) {
   return function rand() {
@@ -298,6 +299,40 @@ export function demoOiBuild(
   if (change1d < -0.4 && volSpike >= 1.4) return "short-build";
   if (change1d < -0.4 && volSpike <= 0.85) return "long-unwind";
   return "neutral";
+}
+
+export function demoStockFo(symbol: string, spot: number, change1d: number, expiry: string): StockFo {
+  const rand = mulberry32(hash(symbol + "fo"));
+  const step = strikeStep(spot);
+  const atm = Math.round(spot / step) * step;
+  const strikes = [];
+  for (let k = atm - step * 8; k <= atm + step * 8; k += step) {
+    const dist = (k - spot) / Math.max(spot, 1);
+    const callOi = Math.round(80_000 * Math.exp(-((dist - 0.012) ** 2) / 0.0022) + rand() * 8_000);
+    const putOi = Math.round(95_000 * Math.exp(-((dist + 0.01) ** 2) / 0.002) + rand() * 9_000);
+    const iv = 18 + Math.abs(dist) * 55 + rand() * 2.5;
+    const ltp = Math.max(0.5, spot * 0.012 * Math.exp(-((dist * 8) ** 2)) * (0.7 + rand() * 0.5));
+    strikes.push({
+      strike: Number(k.toFixed(2)),
+      callOi,
+      putOi,
+      callIv: iv,
+      putIv: iv + 0.8 + rand(),
+      callLtp: Number((ltp * (k >= spot ? 0.85 : 1.15)).toFixed(2)),
+      putLtp: Number((ltp * (k <= spot ? 0.85 : 1.15)).toFixed(2)),
+      callOiChg: Math.round((rand() - 0.45) * 12_000),
+      putOiChg: Math.round((rand() - 0.42) * 12_000),
+    });
+  }
+  return foFromChain({
+    symbol,
+    spot,
+    expiry,
+    strikes,
+    change1d,
+    source: "demo",
+    futPremiumPct: Number(((rand() - 0.46) * 1.6).toFixed(2)),
+  });
 }
 
 export function earningsFor(symbol: string, lastDate: string): {

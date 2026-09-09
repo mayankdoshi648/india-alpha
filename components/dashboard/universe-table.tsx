@@ -9,9 +9,10 @@ import { cn } from "@/lib/utils";
 import { Bookmark, Download, Search } from "lucide-react";
 import { downloadCsv, exportUniverseCsv } from "@/lib/export";
 
-const FILTERS: { id: PatternKind | "all" | "watch"; label: string }[] = [
+const FILTERS: { id: PatternKind | "all" | "watch" | "fno"; label: string }[] = [
   { id: "all", label: "All" },
   { id: "watch", label: "Watchlists" },
+  { id: "fno", label: "F&O" },
   { id: "breakout", label: "Breakout" },
   { id: "stage2", label: "Stage 2" },
   { id: "volume_surge", label: "Vol surge" },
@@ -42,16 +43,17 @@ type ColId =
   | "rsi" | "rsiMa" | "spark" | "vol" | "avgVol" | "turn" | "volx" | "atr" | "rv"
   | "cmf" | "gap" | "vwap" | "emas" | "stack" | "weekly" | "days20"
   | "vs20" | "vs50" | "vs200" | "pivot" | "cross" | "deliv" | "rs" | "oi"
+  | "pcr" | "atmIv" | "futPrem" | "straddle"
   | "pos52" | "high52" | "low52" | "belowH" | "aboveL" | "s2"
   | "earnDays" | "prevEarn" | "earnDay" | "nextEarn" | "setups";
 
 type Preset = "core" | "tape" | "structure" | "flow" | "earnings" | "all";
 
 const PRESET_COLS: Record<Preset, Set<ColId> | "*"> = {
-  core: new Set(["watch", "stock", "n50", "sector", "quad", "cmp", "d1", "w1", "rsi", "volx", "stack", "vs20", "pos52", "s2", "setups"]),
+  core: new Set(["watch", "stock", "n50", "sector", "quad", "cmp", "d1", "pcr", "w1", "rsi", "volx", "stack", "vs20", "pos52", "s2", "setups"]),
   tape: new Set(["watch", "stock", "n50", "sector", "quad", "cmp", "dayH", "dayL", "range", "d1", "w1", "m1", "m3", "streak", "beta", "rsi", "spark", "volx", "gap"]),
   structure: new Set(["watch", "stock", "sector", "cmp", "emas", "stack", "weekly", "days20", "vs20", "vs50", "vs200", "pivot", "cross", "pos52", "high52", "low52", "s2"]),
-  flow: new Set(["watch", "stock", "sector", "cmp", "d1", "vol", "avgVol", "turn", "volx", "atr", "rv", "cmf", "vwap", "deliv", "oi", "rs"]),
+  flow: new Set(["watch", "stock", "sector", "cmp", "d1", "vol", "avgVol", "turn", "volx", "atr", "rv", "cmf", "vwap", "deliv", "oi", "pcr", "atmIv", "futPrem", "rs"]),
   earnings: new Set(["watch", "stock", "sector", "cmp", "d1", "rsi", "s2", "earnDays", "prevEarn", "earnDay", "nextEarn", "setups"]),
   all: "*",
 };
@@ -97,6 +99,10 @@ const COLS: { id: ColId; label: string }[] = [
   { id: "deliv", label: "Delivery %" },
   { id: "rs", label: "RS vs Nifty" },
   { id: "oi", label: "OI build" },
+  { id: "pcr", label: "PCR" },
+  { id: "atmIv", label: "ATM IV" },
+  { id: "futPrem", label: "Fut prem %" },
+  { id: "straddle", label: "Straddle" },
   { id: "pos52", label: "52W pos" },
   { id: "high52", label: "52W high" },
   { id: "low52", label: "52W low" },
@@ -169,7 +175,8 @@ export function UniverseTable({
       if (sector !== "all" && r.sector !== sector) return false;
       if (quad !== "all" && r.sectorQuad !== quad) return false;
       if (filter === "watch" && !watch.has(r.symbol)) return false;
-      if (filter !== "all" && filter !== "watch" && !r.patterns.includes(filter)) return false;
+      if (filter === "fno" && !r.fo?.listed) return false;
+      if (filter !== "all" && filter !== "watch" && filter !== "fno" && !r.patterns.includes(filter)) return false;
       if (q) {
         const s = q.toLowerCase();
         if (!r.symbol.toLowerCase().includes(s) && !r.name.toLowerCase().includes(s) && !r.sector.toLowerCase().includes(s)) {
@@ -381,8 +388,18 @@ export function UniverseTable({
                   </td>
                   <td className={cn("sticky left-9 bg-[#0e1728] px-2 py-1.5", hide("stock"))}>
                     <button type="button" onClick={() => onOpen(r.symbol)} className="text-left hover:text-cyan-300">
-                      <p className="font-medium underline-offset-2 hover:underline">{r.symbol}</p>
-                      <p className="max-w-40 truncate text-[10px] text-muted-foreground">{r.name}</p>
+                      <p className="font-medium underline-offset-2 hover:underline">
+                        {r.symbol}
+                        {r.fo?.listed ? (
+                          <span className="ml-1.5 rounded border border-cyan-400/30 px-1 text-[9px] font-normal tracking-wide text-cyan-300">
+                            F&O
+                          </span>
+                        ) : null}
+                      </p>
+                      <p className="max-w-40 truncate text-[10px] text-muted-foreground">
+                        {r.name}
+                        {r.fo ? ` · PCR ${r.fo.pcr.toFixed(2)}` : ""}
+                      </p>
                     </button>
                   </td>
                   <td className={cn("px-2 py-1.5", hide("n50"))}>{r.nifty50 ? "Y" : ""}</td>
@@ -436,6 +453,10 @@ export function UniverseTable({
                   <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("deliv"))}>{r.deliveryPct.toFixed(1)}%</td>
                   <td className={cn("px-2 py-1.5", hide("rs"))}><Chg value={r.rsNifty} /></td>
                   <td className={cn("px-2 py-1.5 capitalize whitespace-nowrap", hide("oi"))}>{r.oiBuild.replace("-", " ")}</td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("pcr"))}>{r.fo ? r.fo.pcr.toFixed(2) : "—"}</td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("atmIv"))}>{r.fo ? `${r.fo.atmIv.toFixed(1)}%` : "—"}</td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("futPrem"))}>{r.fo ? `${r.fo.futPremiumPct.toFixed(2)}%` : "—"}</td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("straddle"))}>{r.fo ? inr(r.fo.straddle) : "—"}</td>
                   <td className={cn("px-2 py-1.5", hide("pos52"))}>
                     <RangeBar value={r.pos52w} tone="cyan" />
                   </td>

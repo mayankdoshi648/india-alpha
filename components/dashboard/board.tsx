@@ -14,6 +14,7 @@ import { Chg, EmaPills } from "@/components/dashboard/primitives";
 import { SectorMatrix } from "@/components/dashboard/sector-matrix";
 import { UniverseTable } from "@/components/dashboard/universe-table";
 import { DeskErrorBoundary } from "@/components/dashboard/error-boundary";
+import { StockFoList } from "@/components/dashboard/stock-fo";
 import { cn } from "@/lib/utils";
 
 function Pane({
@@ -211,21 +212,27 @@ function SetupList({ hits, onPick }: { hits: PatternHit[]; onPick: (s: string) =
   );
 }
 
-function FoWatch({ data }: { data: DerivativesRadar }) {
+function FoWatch({
+  data,
+  stocks,
+  onOpen,
+}: {
+  data: DerivativesRadar;
+  stocks: StockRow[];
+  onOpen: (s: string) => void;
+}) {
   const maxOi = Math.max(1, ...(data.ladder ?? []).map((s) => Math.max(s.callOi, s.putOi)));
-  const rows = (data.ladder ?? []).slice(0, 9);
+  const rows = (data.ladder ?? []).slice(0, 7);
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2 text-sm">
         <div>
-          <p className="text-[11px] text-slate-400">FII / DII</p>
-          <p className={cn("font-mono tabular-nums", data.fiiNet >= 0 ? "text-emerald-400" : "text-rose-400")}>
-            {signed(data.fiiNet, 0)} / {signed(data.diiNet, 0)}
-          </p>
-        </div>
-        <div>
           <p className="text-[11px] text-slate-400">Max pain</p>
           <p className="font-mono tabular-nums text-white">{inr(data.maxPain, 0)}</p>
+        </div>
+        <div>
+          <p className="text-[11px] text-slate-400">Nifty PCR</p>
+          <p className="font-mono tabular-nums text-white">{data.niftyPcr.toFixed(2)}</p>
         </div>
       </div>
       <p className="text-[11px] text-slate-400">
@@ -250,6 +257,7 @@ function FoWatch({ data }: { data: DerivativesRadar }) {
           );
         })}
       </div>
+      <StockFoList rows={stocks} onOpen={onOpen} />
     </div>
   );
 }
@@ -333,8 +341,8 @@ export function DeskBoard({
           <Pane title="Setups" className="xl:max-h-[22%]">
             <SetupList hits={data.patterns} onPick={onOpen} />
           </Pane>
-          <Pane title="F&O · OI around ATM" className="xl:flex-1">
-            <FoWatch data={data.derivatives} />
+          <Pane title="F&O · index + stocks" className="xl:flex-1">
+            <FoWatch data={data.derivatives} stocks={data.stocks} onOpen={onOpen} />
           </Pane>
           <Pane title="EMA breadth" className="xl:max-h-[22%]">
             <BreadthBars gauges={data.breadthGauges} />

@@ -28,6 +28,7 @@ import {
   demoOiBuild,
   demoOptionStrikes,
   demoPcrHistory,
+  demoStockFo,
   earningsFor,
   generateIndexPath,
   generateSectorBars,
@@ -51,6 +52,7 @@ import {
   stocksFor,
   UNIVERSE,
 } from "@/lib/universe";
+import { nextThursday } from "@/lib/fno";
 import type {
   BreadthCircle,
   BreadthPoint,
@@ -70,7 +72,7 @@ import type {
   UniverseId,
 } from "@/lib/types";
 
-const CACHE_VER = 7;
+const CACHE_VER = 8;
 const cache = new Map<string, { at: number; value: DashboardSnapshot }>();
 
 function overlayLast(bars: OhlcBar[], close: number, changePct?: number): OhlcBar[] {
@@ -546,7 +548,9 @@ export async function buildSnapshot(
       vwapDist: round(pct(vwap(bars, 20), lastBar.close), 2),
       daysAbove20: runDaysAbove(closes, settings.emaShort),
       rv20: realizedVol(closes, 20),
+      fo: demoStockFo(s.symbol, lastBar.close, round(pct(prev.close, lastBar.close), 2), nextThursday(asOf)),
     };
+    if (row.fo) row.oiBuild = row.fo.oiBuild;
     stocks.push(row);
     for (const d of detected) {
       patterns.push({
@@ -744,14 +748,6 @@ export async function buildSnapshot(
   return snapshot;
 }
 
-function nextThursday(from: string): string {
-  const d = new Date(`${from}T00:00:00Z`);
-  const day = d.getUTCDay();
-  const add = (4 - day + 7) % 7 || 7;
-  d.setUTCDate(d.getUTCDate() + add);
-  return d.toISOString().slice(0, 10);
-}
-
 function buildAlerts(input: {
   derivatives: DerivativesRadar;
   stocks: StockRow[];
@@ -822,6 +818,19 @@ function buildAlerts(input: {
       tone: "setup",
       title: `${s.symbol} volume surge on an up day`,
       detail: `${s.volSpike.toFixed(1)}x 9-day volume, ${s.oiBuild.replace("-", " ")}.`,
+      symbol: s.symbol,
+    });
+  }
+  const foHot = input.stocks
+    .filter((s) => s.fo && (s.fo.pcr >= 1.45 || s.fo.pcr <= 0.7))
+    .slice(0, 2);
+  for (const s of foHot) {
+    const fo = s.fo!;
+    alerts.push({
+      id: `fo-${s.symbol}`,
+      tone: fo.pcr >= 1.45 ? "info" : "warn",
+      title: `${s.symbol} ${fo.pcr >= 1.45 ? "put-heavy" : "call-heavy"} PCR ${fo.pcr.toFixed(2)}`,
+      detail: `ATM IV ${fo.atmIv}% · ${fo.oiBuild.replace("-", " ")} · expected move ${fo.expectedMovePct}% to ${fo.expiry}.`,
       symbol: s.symbol,
     });
   }

@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ChartPoint, DashboardSnapshot, DhanCredentials, StrategySettings, UniverseId } from "@/lib/types";
+import type { ChartPoint, DashboardSnapshot, DhanCredentials, StockFo, StrategySettings, UniverseId } from "@/lib/types";
 import { DEFAULT_SETTINGS, STRATEGY_TEMPLATES } from "@/lib/settings";
 import { SettingsPanel } from "@/components/dashboard/settings-panel";
 import { SessionBar } from "@/components/dashboard/session-bar";
 import { StockChart } from "@/components/dashboard/stock-chart";
+import { StockFoPanel } from "@/components/dashboard/stock-fo";
 import { DeskBoard } from "@/components/dashboard/board";
 import { DeskErrorBoundary } from "@/components/dashboard/error-boundary";
 import { Panel, Drawer } from "@/components/dashboard/primitives";
@@ -53,6 +54,7 @@ export function MarketDesk() {
   const [watch, setWatch] = useState<WatchStore>(EMPTY_WATCH);
   const [openSymbol, setOpenSymbol] = useState<string | null>(null);
   const [chart, setChart] = useState<ChartPoint[]>([]);
+  const [liveFo, setLiveFo] = useState<StockFo | null>(null);
   const [dhan, setDhan] = useState<DhanCredentials>(EMPTY_DHAN);
   const [dhanBusy, setDhanBusy] = useState(false);
   const [dhanStatus, setDhanStatus] = useState<string | null>(null);
@@ -124,13 +126,12 @@ export function MarketDesk() {
   useEffect(() => {
     if (!openSymbol) {
       setChart([]);
+      setLiveFo(null);
       return;
     }
-    const existing = data?.stocks.find((s) => s.symbol === openSymbol)?.chart;
-    if (existing?.length) {
-      setChart(existing);
-      return;
-    }
+    const existing = data?.stocks.find((s) => s.symbol === openSymbol);
+    if (existing?.chart?.length) setChart(existing.chart);
+    setLiveFo(existing?.fo ?? null);
     let cancelled = false;
     void fetch(`/api/stock?symbol=${encodeURIComponent(openSymbol)}&universe=${universe}`, {
       signal: AbortSignal.timeout(15_000),
@@ -139,11 +140,13 @@ export function MarketDesk() {
         : undefined,
     })
       .then((r) => r.json())
-      .then((json: { chart?: ChartPoint[] }) => {
-        if (!cancelled) setChart(json.chart ?? []);
+      .then((json: { chart?: ChartPoint[]; fo?: StockFo | null }) => {
+        if (cancelled) return;
+        if (json.chart?.length) setChart(json.chart);
+        if (json.fo) setLiveFo(json.fo);
       })
       .catch(() => {
-        if (!cancelled) setChart([]);
+        if (!cancelled) setChart(existing?.chart ?? []);
       });
     return () => {
       cancelled = true;
@@ -168,6 +171,7 @@ export function MarketDesk() {
 
   const dhanLive = data?.sources.quotes === "dhan" || data?.sources.derivatives === "dhan";
   const row = data?.stocks.find((s) => s.symbol === openSymbol) ?? null;
+  const fo = liveFo ?? row?.fo ?? null;
 
   function toggleWatch(symbol: string) {
     persistWatch((() => {
@@ -401,6 +405,7 @@ export function MarketDesk() {
               </h2>
               <p className="text-sm text-muted-foreground">
                 {row.sector} · {row.cap} cap · Stage 2 {row.stage2Score}/7
+                {fo?.listed ? " · F&O listed" : ""}
               </p>
             </div>
             <div className="space-y-4 px-4 pb-8">
@@ -409,6 +414,7 @@ export function MarketDesk() {
                 <Chg value={row.change1d} />
               </div>
               <StockChart points={chart.length ? chart : row.chart ?? []} emas={row.emas} />
+              {fo ? <StockFoPanel fo={fo} /> : null}
               <EmaPills emas={row.emas} />
               <div className="flex flex-wrap gap-1">
                 {row.patterns.map((p) => (
