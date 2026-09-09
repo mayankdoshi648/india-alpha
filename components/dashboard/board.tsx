@@ -19,16 +19,19 @@ import { ChartPatternBoard } from "@/components/dashboard/chart-pattern-board";
 import { cn } from "@/lib/utils";
 
 function Pane({
+  id,
   title,
   children,
   className,
 }: {
+  id?: string;
   title: string;
   children: React.ReactNode;
   className?: string;
 }) {
   return (
     <section
+      id={id}
       className={cn(
         "flex flex-col rounded-xl border border-white/10 bg-[#121b2c] xl:min-h-0 xl:overflow-hidden",
         className,
@@ -339,7 +342,11 @@ export function DeskBoard({
   return (
     <div className="flex flex-1 flex-col gap-2.5 xl:min-h-0">
       <WatchStrip data={data} />
-      <Pane title="Breakout / breakdown · triangles, flags, wedges, H&S" className="xl:max-h-[30%] xl:min-h-[9rem]">
+      <Pane
+        id="breakout-patterns"
+        title={`Breakout / breakdown · triangles, flags, wedges, H&S · ${data.chartPatterns?.length ?? 0}`}
+        className="shrink-0 scroll-mt-16 border-amber-400/40 xl:overflow-visible"
+      >
         <ChartPatternBoard hits={data.chartPatterns ?? []} universe={data.universe} onOpen={onOpen} />
       </Pane>
       <div className="grid grid-cols-1 gap-2.5 xl:min-h-0 xl:flex-1 xl:grid-cols-[20rem_minmax(0,1fr)_22rem] xl:grid-rows-[minmax(0,1fr)]">
