@@ -65,18 +65,32 @@ export interface NseConstituent {
   totalTradedVolume: number;
 }
 
+async function nseGetFirst<T>(paths: string[]): Promise<T> {
+  let lastErr: unknown;
+  for (const path of paths) {
+    try {
+      return await nseGet<T>(path);
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("NSE unavailable");
+}
+
 export async function nseIndexStocks(index: string): Promise<NseConstituent[]> {
-  const json = await nseGet<{ data?: NseConstituent[] }>(
-    `/api/equity-stockIndices?index=${encodeURIComponent(index)}`,
-  );
-  return json.data ?? [];
+  const q = encodeURIComponent(index);
+  const json = await nseGetFirst<{ data?: NseConstituent[] }>([
+    `/api/equity-stock-indices?index=${q}`,
+    `/api/equity-stockIndices?index=${q}`,
+  ]);
+  return (json.data ?? []).filter((row) => row.symbol && row.symbol !== index);
 }
 
 export async function nseFiiDii(): Promise<FlowDay[]> {
-  const json = await nseGet<
+  const json = await nseGetFirst<
     | { data?: Record<string, unknown>[] }
     | Record<string, unknown>[]
-  >("/api/fiidiiTradeData");
+  >(["/api/fiidii-trade-data", "/api/fiidiiTradeData", "/api/fiidiiTradeVal"]);
   const rows = Array.isArray(json) ? json : json.data ?? [];
   return rows.map((row) => {
     const r = row as Record<string, string | number>;
@@ -98,7 +112,9 @@ export async function nseOptionChain(symbol: string): Promise<{
   expiry: string;
   strikes: { strike: number; callOi: number; putOi: number; callIv: number; putIv: number }[];
 }> {
-  return nseChain(`/api/option-chain-indices?symbol=${encodeURIComponent(symbol)}`);
+  return nseChain(`/api/option-chain-v3?type=Indices&symbol=${encodeURIComponent(symbol)}`).catch(() =>
+    nseChain(`/api/option-chain-indices?symbol=${encodeURIComponent(symbol)}`),
+  );
 }
 
 export async function nseEquityOptionChain(symbol: string): Promise<{
@@ -116,7 +132,9 @@ export async function nseEquityOptionChain(symbol: string): Promise<{
     putOiChg?: number;
   }[];
 }> {
-  return nseChain(`/api/option-chain-equities?symbol=${encodeURIComponent(symbol)}`);
+  return nseChain(`/api/option-chain-v3?type=Equity&symbol=${encodeURIComponent(symbol)}`).catch(() =>
+    nseChain(`/api/option-chain-equities?symbol=${encodeURIComponent(symbol)}`),
+  );
 }
 
 async function nseChain(path: string): Promise<{
@@ -195,7 +213,9 @@ async function nseChain(path: string): Promise<{
     cur.putOiChg = (cur.putOiChg ?? 0) + (r.PE?.changeinOpenInterest ?? 0);
     byStrike.set(r.strikePrice, cur);
   }
-  return { spot, expiry, strikes: [...byStrike.values()] };
+  const strikes = [...byStrike.values()];
+  if (!strikes.length) throw new Error(`NSE ${path} empty`);
+  return { spot, expiry, strikes };
 }
 
 export async function nseChart(symbol: string): Promise<OhlcBar[]> {
