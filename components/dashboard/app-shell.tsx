@@ -368,43 +368,36 @@ export function MarketDesk() {
     <div className="flex h-full min-h-dvh flex-col overflow-hidden bg-[#0b1220] text-slate-100">
       <header className="shrink-0 border-b border-white/10 bg-[#0b1220]">
         <div className="flex flex-wrap items-center gap-2 px-3 py-2">
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-sky-400/15 text-sky-300">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sky-400/15 text-sky-300">
               <Landmark className="size-4" />
             </div>
-            <div>
-              <p className="text-[13px] font-semibold tracking-tight text-white">India Market Desk</p>
-              {data ? (
-                <SessionBar data={data} token={dhan.accessToken} />
-              ) : (
-                <p className="text-[12px] text-slate-500">Loading tape…</p>
-              )}
-            </div>
+            <p className="text-[13px] font-semibold tracking-tight text-white">India Market Desk</p>
           </div>
-          <div className="ml-auto flex flex-wrap items-center gap-1.5">
-              <div className="flex overflow-hidden rounded-md border border-amber-400/40">
-                <button
-                  type="button"
-                  id="view-patterns"
-                  onClick={() => setDeskView("patterns")}
-                  className={`inline-flex h-8 items-center px-3 text-[13px] font-medium ${view === "patterns" ? "bg-amber-400/20 text-amber-100" : "text-amber-200/70 hover:bg-amber-400/10"}`}
-                >
-                  Chart patterns
-                  {data?.chartPatterns?.length ? (
-                    <span className="ml-1.5 rounded-md bg-amber-400/20 px-1.5 font-mono text-[11px] tabular-nums">
-                      {data.chartPatterns.length}
-                    </span>
-                  ) : null}
-                </button>
-                <button
-                  type="button"
-                  id="view-desk"
-                  onClick={() => setDeskView("desk")}
-                  className={`h-8 px-3 text-[13px] ${view === "desk" ? "bg-amber-400/20 text-amber-100" : "text-slate-400 hover:bg-white/5"}`}
-                >
-                  Desk
-                </button>
-              </div>
+          <div className="flex shrink-0 overflow-hidden rounded-md border border-amber-400/40">
+            <button
+              type="button"
+              id="view-patterns"
+              onClick={() => setDeskView("patterns")}
+              className={`inline-flex h-8 items-center px-3 text-[13px] font-medium ${view === "patterns" ? "bg-amber-400/20 text-amber-100" : "text-amber-200/70 hover:bg-amber-400/10"}`}
+            >
+              Chart patterns
+              {data?.chartPatterns?.length ? (
+                <span className="ml-1.5 rounded-md bg-amber-400/20 px-1.5 font-mono text-[11px] tabular-nums">
+                  {data.chartPatterns.length}
+                </span>
+              ) : null}
+            </button>
+            <button
+              type="button"
+              id="view-desk"
+              onClick={() => setDeskView("desk")}
+              className={`h-8 px-3 text-[13px] ${view === "desk" ? "bg-amber-400/20 text-amber-100" : "text-slate-400 hover:bg-white/5"}`}
+            >
+              Desk
+            </button>
+          </div>
+          <div className="flex w-full flex-wrap items-center gap-1.5 sm:ml-auto sm:w-auto">
               <div className="flex overflow-hidden rounded-md border border-white/10">
                 <button
                   type="button"
@@ -473,6 +466,13 @@ export function MarketDesk() {
               </button>
             </div>
           </div>
+        {data ? (
+          <div className="border-t border-white/8 px-3 py-1.5">
+            <SessionBar data={data} token={dhan.accessToken} />
+          </div>
+        ) : (
+          <p className="px-3 pb-2 text-[12px] text-slate-500">Loading tape…</p>
+        )}
       </header>
 
       <main className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-auto px-3 py-2.5">
