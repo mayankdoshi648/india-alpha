@@ -63,3 +63,11 @@ export function tokenAgeLabel(token: string, now = Date.now()): string | null {
   if (hours >= 24) return `token ${Math.floor(hours / 24)}d ${hours % 24}h`;
   return `token ${hours}h ${mins}m`;
 }
+
+/** Renew when the JWT is still valid but inside the last 12 hours. */
+export function shouldRenewDhanToken(token: string, now = Date.now()): boolean {
+  const exp = jwtExpiryMs(token);
+  if (!exp) return false;
+  const left = exp - now;
+  return left > 0 && left <= 12 * 3_600_000;
+}

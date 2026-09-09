@@ -143,6 +143,40 @@ export async function dhanProfile(accessToken: string): Promise<DhanProfile> {
   return (await res.json()) as DhanProfile;
 }
 
+/** Extends a still-valid web JWT by 24h. Fails once the token has already expired. */
+export async function dhanRenewToken(
+  accessToken: string,
+  clientId: string,
+): Promise<{ accessToken: string; expiryTime?: string; clientId?: string }> {
+  const token = cleanDhanSecret(accessToken);
+  const id = cleanDhanSecret(clientId);
+  const res = await fetch(`${BASE}/RenewToken`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "access-token": token,
+      "client-id": id,
+      dhanClientId: id,
+    },
+    cache: "no-store",
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) await readDhanError(res, "/RenewToken");
+  const json = (await res.json()) as {
+    accessToken?: string;
+    access_token?: string;
+    expiryTime?: string;
+    dhanClientId?: string;
+  };
+  const next = cleanDhanSecret(json.accessToken || json.access_token);
+  if (!looksLikeJwt(next)) throw new Error("Dhan did not return a renewed access token.");
+  return {
+    accessToken: next,
+    expiryTime: json.expiryTime,
+    clientId: json.dhanClientId?.trim(),
+  };
+}
+
 export async function dhanLtp(ids: number[]): Promise<Record<string, number>> {
   const unique = [...new Set(ids.filter((id) => id > 0))];
   const out: Record<string, number> = {};
@@ -269,9 +303,12 @@ export async function dhanOptionChain(
   return { spot: json.data?.last_price ?? 0, strikes };
 }
 
+let scripCache: { at: number; map: Map<string, number> } | null = null;
+
 export async function dhanSecurityMap(): Promise<Map<string, number>> {
+  if (scripCache && Date.now() - scripCache.at < 6 * 60 * 60_000) return scripCache.map;
   const url = "https://images.dhan.co/api-data/api-scrip-master.csv";
-  const res = await fetch(url, { cache: "force-cache" });
+  const res = await fetch(url, { cache: "force-cache", signal: AbortSignal.timeout(45_000) });
   if (!res.ok) throw new Error("Dhan scrip master unavailable");
   const text = await res.text();
   const lines = text.split(/\r?\n/);
@@ -280,16 +317,24 @@ export async function dhanSecurityMap(): Promise<Map<string, number>> {
   const symIdx = header.findIndex((h) => /SEM_TRADING_SYMBOL|SYMBOL/i.test(h));
   const instIdx = header.findIndex((h) => /SEM_INSTRUMENT_NAME|INSTRUMENT/i.test(h));
   const exchIdx = header.findIndex((h) => /SEM_EXM_EXCH_ID|EXCH/i.test(h));
+  const seriesIdx = header.findIndex((h) => /SEM_SERIES|SERIES/i.test(h));
   const map = new Map<string, number>();
   for (const line of lines.slice(1)) {
     if (!line) continue;
     const cols = line.split(",");
     const inst = cols[instIdx] ?? "";
     const exch = cols[exchIdx] ?? "";
-    if (!/EQUITY/i.test(inst) || !/NSE/i.test(exch)) continue;
+    const series = cols[seriesIdx] ?? "";
+    if (!/^EQUITY$/i.test(inst) || !/^NSE$/i.test(exch)) continue;
+    if (series && !/^(EQ|BE)$/i.test(series)) continue;
     const symbol = cols[symIdx]?.trim();
     const id = Number(cols[idIdx]);
-    if (symbol && id) map.set(symbol, id);
+    if (symbol && id) {
+      if (!map.has(symbol) || series === "EQ") map.set(symbol, id);
+    }
   }
+  // Tata Motors listed as TMPV after the split; keep the old ticker pointing at that cash name.
+  if (map.has("TMPV") && !map.has("TATAMOTORS")) map.set("TATAMOTORS", map.get("TMPV")!);
+  scripCache = { at: Date.now(), map };
   return map;
 }

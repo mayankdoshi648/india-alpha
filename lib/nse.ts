@@ -11,25 +11,32 @@ const BROWSER_HEADERS: HeadersInit = {
 };
 
 let cookieJar = "";
-let cookieAt = 0;
+
+async function refreshCookie() {
+  const home = await fetch(NSE_HOME, {
+    headers: BROWSER_HEADERS,
+    cache: "no-store",
+    signal: AbortSignal.timeout(2500),
+  });
+  cookieJar = home.headers.getSetCookie?.().join("; ") ?? home.headers.get("set-cookie") ?? "";
+}
 
 async function nseGet<T>(path: string): Promise<T> {
-  if (!cookieJar || Date.now() - cookieAt > 10 * 60_000) {
-    const home = await fetch(NSE_HOME, {
-      headers: BROWSER_HEADERS,
+  const pull = async () => {
+    const res = await fetch(`${NSE_HOME}${path}`, {
+      headers: { ...BROWSER_HEADERS, Cookie: cookieJar },
       cache: "no-store",
-      signal: AbortSignal.timeout(2500),
+      signal: AbortSignal.timeout(3500),
     });
-    cookieJar = home.headers.getSetCookie?.().join("; ") ?? home.headers.get("set-cookie") ?? "";
-    cookieAt = Date.now();
+    if (!res.ok) throw new Error(`NSE ${path} ${res.status}`);
+    return (await res.json()) as T;
+  };
+  try {
+    return await pull();
+  } catch {
+    await refreshCookie();
+    return await pull();
   }
-  const res = await fetch(`${NSE_HOME}${path}`, {
-    headers: { ...BROWSER_HEADERS, Cookie: cookieJar },
-    cache: "no-store",
-    signal: AbortSignal.timeout(3500),
-  });
-  if (!res.ok) throw new Error(`NSE ${path} ${res.status}`);
-  return (await res.json()) as T;
 }
 
 export interface NseIndex {

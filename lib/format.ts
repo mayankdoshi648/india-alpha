@@ -40,6 +40,38 @@ export const PATTERN_LABEL: Record<string, string> = {
   oversold_pullback: "Oversold pullback",
 };
 
+export const CHART_PATTERN_LABEL: Record<string, string> = {
+  ascending_triangle: "Ascending triangle",
+  descending_triangle: "Descending triangle",
+  symmetrical_triangle: "Symmetrical triangle",
+  bullish_flag: "Bullish flag",
+  bearish_flag: "Bearish flag",
+  rising_wedge: "Rising wedge",
+  falling_wedge: "Falling wedge",
+  head_shoulders: "Head & shoulders",
+  inv_head_shoulders: "Inv. head & shoulders",
+  double_top: "Double top",
+  double_bottom: "Double bottom",
+  triple_top: "Triple top",
+  triple_bottom: "Triple bottom",
+};
+
+export const CHART_PATTERN_TONE: Record<string, string> = {
+  ascending_triangle: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  descending_triangle: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+  symmetrical_triangle: "bg-sky-500/15 text-sky-300 border-sky-500/30",
+  bullish_flag: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  bearish_flag: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+  rising_wedge: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+  falling_wedge: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  head_shoulders: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+  inv_head_shoulders: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  double_top: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+  double_bottom: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  triple_top: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+  triple_bottom: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+};
+
 export const PATTERN_TONE: Record<string, string> = {
   stage2: "bg-amber-500/15 text-amber-300 border-amber-500/30",
   breakout: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",

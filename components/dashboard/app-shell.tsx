@@ -2,19 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChartPoint, DashboardSnapshot, DhanCredentials, StockFo, StrategySettings, SwingSetup, UniverseId } from "@/lib/types";
-import { DEFAULT_SETTINGS, STRATEGY_TEMPLATES } from "@/lib/settings";
+import { DEFAULT_SETTINGS, STRATEGY_TEMPLATES, isDefaultSettings } from "@/lib/settings";
 import { SettingsPanel } from "@/components/dashboard/settings-panel";
 import { SessionBar } from "@/components/dashboard/session-bar";
 import { StockChart } from "@/components/dashboard/stock-chart";
 import { StockFoPanel } from "@/components/dashboard/stock-fo";
 import { SwingPanel } from "@/components/dashboard/swing-setup";
+import { ChartPatternMini } from "@/components/dashboard/chart-pattern-board";
 import { DeskBoard } from "@/components/dashboard/board";
 import { DeskErrorBoundary } from "@/components/dashboard/error-boundary";
 import { Panel, Drawer } from "@/components/dashboard/primitives";
 import { Button } from "@/components/ui/button";
 import { PATTERN_LABEL, inr } from "@/lib/format";
 import { Chg, EmaPills } from "@/components/dashboard/primitives";
-import { indiaSession } from "@/lib/session";
+import { indiaSession, shouldRenewDhanToken } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import {
   KeyRound,
@@ -78,6 +79,21 @@ export function MarketDesk() {
     setLoading(true);
     setError(null);
     try {
+      const useBaked = !creds.accessToken && isDefaultSettings(s);
+      let painted = false;
+      if (useBaked) {
+        const baked = await fetch(`/data/${u}.json`, {
+          cache: "force-cache",
+          signal: AbortSignal.timeout(20_000),
+        });
+        if (baked.ok) {
+          const json = (await baked.json()) as DashboardSnapshot;
+          setData(json);
+          setUniverse(json.universe ?? u);
+          setLoading(false);
+          painted = true;
+        }
+      }
       const res = await fetch(`/api/market?universe=${u}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -89,9 +105,12 @@ export function MarketDesk() {
         signal: AbortSignal.timeout(u === "nifty500" ? 90_000 : 40_000),
       });
       const json = (await res.json()) as DashboardSnapshot & { error?: string };
-      if (!res.ok) throw new Error(json.error || `Market API ${res.status}`);
-      setData(json);
-      setUniverse(json.universe ?? u);
+      if (!res.ok) {
+        if (!painted) throw new Error(json.error || `Market API ${res.status}`);
+      } else {
+        setData(json);
+        setUniverse(json.universe ?? u);
+      }
       try {
         localStorage.setItem("imd-universe", json.universe ?? u);
       } catch {
@@ -138,6 +157,37 @@ export function MarketDesk() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  useEffect(() => {
+    if (!dhan.accessToken || !dhan.clientId) return;
+    if (!shouldRenewDhanToken(dhan.accessToken)) return;
+    let cancelled = false;
+    void fetch("/api/dhan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...dhan, renew: true }),
+      signal: AbortSignal.timeout(15_000),
+    })
+      .then((r) => r.json())
+      .then((json: { ok?: boolean; accessToken?: string; clientId?: string; tokenValidity?: string | null }) => {
+        if (cancelled || !json.ok || !json.accessToken) return;
+        const saved: DhanCredentials = {
+          accessToken: json.accessToken,
+          clientId: json.clientId || dhan.clientId,
+        };
+        setDhan(saved);
+        localStorage.setItem("imd-dhan", JSON.stringify(saved));
+        setDhanStatus(
+          json.tokenValidity ? `Dhan token renewed · valid until ${json.tokenValidity}` : "Dhan token renewed for 24 hours",
+        );
+      })
+      .catch(() => {
+        // Keep the current token; user pastes again only if it expires unused.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dhan.accessToken, dhan.clientId]);
 
   useEffect(() => {
     if (!openSymbol) {
@@ -437,6 +487,7 @@ export function MarketDesk() {
               <div id="swing-panel">
                 <SwingPanel vcp={liveSwing.vcp ?? row.vcp} breakout={liveSwing.breakout ?? row.breakout} />
               </div>
+              <ChartPatternMini hits={(data?.chartPatterns ?? []).filter((p) => p.symbol === row.symbol)} />
               <StockChart points={chart.length ? chart : row.chart ?? []} emas={row.emas} />
               {fo ? <StockFoPanel fo={fo} /> : null}
               <EmaPills emas={row.emas} />

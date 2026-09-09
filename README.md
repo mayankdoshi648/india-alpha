@@ -2,7 +2,7 @@
 
 A single-screen Nifty 50 / Nifty 500 desk: index tape, mosaic, sector rotation, universe, alerts, swing setups (VCP / breakout), F&O and breadth on one page.
 
-Quotes, historical candles and the Nifty option chain come from **DhanHQ** when you add credentials. **NSE India** is used for FII/DII cash flow and index last prices when the public feed is reachable. If neither is available, the desk still runs on a deterministic tape anchored to the 8 Sep 2026 close (Nifty 23,635) so every panel stays usable.
+Quotes, historical candles and the Nifty option chain come from **DhanHQ** when you add credentials. **NSE India** is used for index last prices and FII/DII when the public feed is reachable. Equity last prices fall back to **Yahoo Finance** (`.NS`) because NSE’s stock board is blocked from most cloud IPs — that is why a public deploy used to show the demo tape instead of the real share. If neither is available, the desk still runs on a deterministic tape anchored to the 8 Sep 2026 close (Nifty 23,635) so every panel stays usable.
 
 ## Run locally
 
@@ -12,7 +12,7 @@ cp .env.example .env.local   # optional server-side fallback; you can also paste
 npm run dev
 ```
 
-Open [http://127.0.0.1:43147](http://127.0.0.1:43147). The shell paints immediately; quotes then load from `/api/market`.
+Open [http://127.0.0.1:43147](http://127.0.0.1:43147). The shell paints immediately; the tape then loads from `/data/nifty50.json` (or `/api/market` in `next dev`).
 
 For a production-like local run (required if a preview iframe blocks `/_next` from `next dev`):
 
@@ -22,7 +22,11 @@ npm run build && npm run start
 
 ## DhanHQ
 
-Paste the 24-hour **Access Token** (JWT, starts with `eyJ`) from [web.dhan.co](https://web.dhan.co) → My Profile → Access DhanHQ APIs. Client ID is optional — the desk reads it from Dhan. Do not paste the API key. `.env.local` still works as a server-side fallback:
+Paste the 24-hour **Access Token** (JWT, starts with `eyJ`) from [web.dhan.co](https://web.dhan.co) → My Profile → Access DhanHQ APIs. You also need the **Data APIs** plan subscribed there — a trading token without data returns Dhan 806. Client ID is optional — the desk reads it from Dhan. Do not paste the API key.
+
+Dhan does not issue a never-expiring data token. This desk calls Dhan’s **RenewToken** while the JWT is still valid, so if you open the page at least once a day you should not have to paste again. If the token expires unused, generate a new one on Dhan Web.
+
+`.env.local` still works as a server-side fallback:
 
 ```
 DHAN_ACCESS_TOKEN=your_jwt
@@ -40,13 +44,14 @@ NSE (no key): `allIndices`, `fiidiiTradeData`, `option-chain-indices`, `option-c
 
 ## What is on the desk
 
-The desk is **one page**. The first paint is a light shell; the tape loads from `/api/market` so the page is not a 1MB HTML dump. Indices, mosaic, sector rotation, universe, alerts, setups, F&O and breadth sit together so you can watch without switching tabs. Configure / Dhan keys open a side panel.
+The desk is **one page**. The first paint is a light shell; the tape loads from baked `/data/*.json` (or `/api/market` when Dhan keys or custom settings are in play) so the page is not a 1MB HTML dump. Indices, mosaic, sector rotation, universe, alerts, setups, F&O and breadth sit together so you can watch without switching tabs. Configure / Dhan keys open a side panel.
 
 1. **Watch strip** — Nifty 50 or Nifty 500 (whichever group is selected), Bank Nifty, VIX, PCR, A/D, FII.
-2. **Index tape + mosaic + gainers/losers** — left column. The mosaic and movers follow the selected group.
-3. **Sector rotation + universe** — centre. The table lists every name in the selected group (50 or ~500).
-4. **Alerts, swing setups (VCP / breakout), F&O (Nifty + stocks), EMA breadth** — right column, scored on the same group.
-5. **Stock drawer** — click any name for chart, VCP contraction legs, breakout pivot/stop/1R/2R, stock option chain, PCR/IV and notes.
+2. **Breakout / breakdown** — triangles, flags, wedges, H&S and double/triple on daily, weekly and monthly bars, with volume/RSI/divergence rationale.
+3. **Index tape + mosaic + gainers/losers** — left column. The mosaic and movers follow the selected group.
+4. **Sector rotation + universe** — centre. The table lists every name in the selected group (50 or ~500).
+5. **Alerts, swing setups (VCP / breakout), F&O (Nifty + stocks), EMA breadth** — right column, scored on the same group.
+6. **Stock drawer** — click any name for chart, VCP contraction legs, breakout pivot/stop/1R/2R, chart-pattern rationale, stock option chain, PCR/IV and notes.
 
 Toggle **Nifty 50** / **Nifty 500** in the header. The whole desk recalculates: heat map, universe, breadth, alerts and swing setups. The choice is remembered in this browser.
 
@@ -74,9 +79,19 @@ A VCP is a Stage 2 name that coils through **successively tighter pullbacks** as
 
 Configure **Breakout vol** and **Retrace %** in the side panel. The drawer shows the contraction table, checklist ticks, and the next action in plain language.
 
+## Chart patterns (breakout / breakdown)
+
+A separate **Breakout / breakdown** strip scans the selected universe (Nifty 50 or Nifty 500) on **daily, weekly and monthly** bars for the classic geometries: ascending / descending / symmetrical triangles, bull and bear flags, rising / falling wedges, head-and-shoulders and inverse, double and triple tops/bottoms.
+
+Each name lists the pattern, timeframe, whether it is continuation or reversal, and a trade rationale: volume on the break, RSI, bullish/bearish (or hidden) divergence, plus entry / stop / measured-move target from the pattern height. Filter by timeframe and long vs short. Click a row to open the stock drawer.
+
+This is a scanner, not a broker order.
+
 ## Open on a phone or another laptop
 
-`http://127.0.0.1:43147` only works on the machine running the desk. For a public link, publish the app (Vercel). You get a `*.vercel.app` URL that works in any browser. Dhan keys stay in that browser only — they are not stored on the server unless you set `DHAN_ACCESS_TOKEN` in the host’s environment.
+Import this repo in [Vercel](https://vercel.com/new). The build bakes Nifty 50 and Nifty 500 into static JSON, so the public `*.vercel.app` URL loads the desk without waiting on a serverless snapshot. Dhan keys stay in that browser only — they are not stored on the server unless you set `DHAN_ACCESS_TOKEN` in the host’s environment.
+
+`npm run build` writes `/data/nifty50.json` and `/data/nifty500.json` first. Local `next dev` still builds the tape on demand if those files are missing.
 
 
 ## Scripts

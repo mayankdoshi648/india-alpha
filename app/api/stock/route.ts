@@ -1,5 +1,4 @@
-import { buildSnapshot } from "@/lib/engine";
-import { stockChartPayload } from "@/lib/payload";
+import { buildStockDetail } from "@/lib/engine";
 import { fetchLiveStockFo } from "@/lib/fno";
 import { runWithDhan, sanitizeDhanInput } from "@/lib/dhan";
 import { stocksFor } from "@/lib/universe";
@@ -8,7 +7,7 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 30;
 
 export async function GET(req: Request) {
   try {
@@ -20,8 +19,7 @@ export async function GET(req: Request) {
       accessToken: req.headers.get("x-dhan-access-token") || "",
       clientId: req.headers.get("x-dhan-client-id") || "",
     });
-    const snap = await runWithDhan(creds, () => buildSnapshot(universe));
-    const payload = stockChartPayload(snap, symbol);
+    const payload = await runWithDhan(creds, () => buildStockDetail(symbol, universe));
     if (!payload) return NextResponse.json({ error: "not found" }, { status: 404 });
     const meta = stocksFor(universe).find((s) => s.symbol === symbol);
     const live = await runWithDhan(creds, () =>

@@ -1,6 +1,7 @@
 import {
   dhanIndexLtp,
   dhanProfile,
+  dhanRenewToken,
   explainDhanAuthError,
   looksLikeJwt,
   runWithDhan,
@@ -16,6 +17,7 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as {
     accessToken?: string;
     clientId?: string;
+    renew?: boolean;
   };
   const creds = sanitizeDhanInput(body);
   if (!creds) {
@@ -35,6 +37,27 @@ export async function POST(req: Request) {
     );
   }
   try {
+    if (body.renew) {
+      if (!creds.clientId) {
+        return NextResponse.json(
+          { ok: false, error: "Client ID is required to renew the token." },
+          { status: 400 },
+        );
+      }
+      const renewed = await dhanRenewToken(creds.accessToken, creds.clientId);
+      const accessToken = renewed.accessToken;
+      const profile = await dhanProfile(accessToken);
+      const clientId = profile.dhanClientId?.trim() || renewed.clientId || creds.clientId;
+      return NextResponse.json({
+        ok: true,
+        renewed: true,
+        accessToken,
+        clientId,
+        tokenValidity: profile.tokenValidity ?? renewed.expiryTime ?? null,
+        dataPlan: profile.dataPlan ?? null,
+        name: profile.dhanClientName ?? null,
+      });
+    }
     const profile = await dhanProfile(creds.accessToken);
     const clientId = profile.dhanClientId?.trim() || creds.clientId;
     if (!clientId) {

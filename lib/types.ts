@@ -1,7 +1,7 @@
 export type CapBucket = "large" | "mid" | "small";
 export type UniverseId = "nifty50" | "nifty500";
 export type Timeframe = "D" | "W" | "M";
-export type DataSource = "dhan" | "nse" | "demo";
+export type DataSource = "dhan" | "nse" | "yahoo" | "demo";
 export type RotationQuadrant = "leading" | "weakening" | "lagging" | "improving";
 export type PatternKind =
   | "stage2"
@@ -14,6 +14,25 @@ export type PatternKind =
   | "hidden_bearish_div"
   | "pivot_reclaim"
   | "oversold_pullback";
+
+export type ChartPatternKind =
+  | "ascending_triangle"
+  | "descending_triangle"
+  | "symmetrical_triangle"
+  | "bullish_flag"
+  | "bearish_flag"
+  | "rising_wedge"
+  | "falling_wedge"
+  | "head_shoulders"
+  | "inv_head_shoulders"
+  | "double_top"
+  | "double_bottom"
+  | "triple_top"
+  | "triple_bottom";
+
+export type ChartPatternRole = "continuation" | "reversal";
+export type ChartPatternBias = "bullish" | "bearish";
+export type ChartPatternStatus = "forming" | "breakout" | "breakdown";
 
 export type SwingStatus = "coiling" | "at_pivot" | "triggered" | "throwback" | "extended" | "failed";
 
@@ -322,6 +341,29 @@ export interface PatternHit {
   swing?: SwingSetup;
 }
 
+export interface ChartPatternHit {
+  symbol: string;
+  name: string;
+  sector: string;
+  cmp: number;
+  change1d: number;
+  kind: ChartPatternKind;
+  bias: ChartPatternBias;
+  role: ChartPatternRole;
+  timeframe: Timeframe;
+  status: ChartPatternStatus;
+  score: number;
+  entry: number;
+  stop: number;
+  target: number;
+  rr: number;
+  volX: number;
+  rsi: number;
+  divergence: "bullish" | "bearish" | "hidden_bullish" | "hidden_bearish" | null;
+  rationale: string;
+  summary: string;
+}
+
 export interface BreadthPoint {
   date: string;
   advanceDecline: number;
@@ -376,6 +418,7 @@ export interface DashboardSnapshot {
   heatmap: HeatCell[];
   stocks: StockRow[];
   patterns: PatternHit[];
+  chartPatterns: ChartPatternHit[];
   breadth: MarketBreadth;
   trend: TrendFilters;
   settings: StrategySettings;
