@@ -48,6 +48,12 @@ export function sanitizeDhanInput(raw?: Partial<DhanCredentials> | null): DhanCr
 }
 
 export function explainDhanAuthError(raw: string): string {
+  if (/\/profile\b/i.test(raw) && /DH-906|Order_Error|Invalid Token/i.test(raw)) {
+    return "Dhan /profile rejected this JWT (DH-906). That call is trading-only. Data APIs tokens are validated on market LTP instead — reconnect. If LTP also fails, paste a fresh 24-hour Data APIs JWT from web.dhan.co → My Profile → Access DhanHQ APIs (starts with eyJ, not the API key).";
+  }
+  if (/DH-906/i.test(raw) || (/Order_Error/i.test(raw) && /Invalid Token/i.test(raw))) {
+    return "Dhan rejected this JWT (DH-906 Invalid Token). Paste a fresh 24-hour Data APIs Access Token from web.dhan.co → My Profile → Access DhanHQ APIs. It starts with eyJ — not the API key and not an order/trading token. Subscribe to Data APIs if you have not. If you already used RenewToken, the previous JWT is dead.";
+  }
   if (/806|DH-902|not subscribed/i.test(raw)) {
     return "This access token is valid, but Data APIs are not subscribed. In web.dhan.co open My Profile → Access DhanHQ APIs and subscribe to the data plan.";
   }
@@ -64,6 +70,13 @@ export function explainDhanAuthError(raw: string): string {
     return "Dhan rejected this Client ID or access token. Use a fresh 24-hour Access Token from web.dhan.co → My Profile → Access DhanHQ APIs, and the numeric Client ID shown there. Do not paste the API key. Tokens expire in 24 hours.";
   }
   return raw.slice(0, 240);
+}
+
+/** Trading /profile often returns DH-906 for Data APIs JWTs. Marketfeed LTP is the real check. */
+export function isOptionalDhanProfileError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (!/\/profile\b/i.test(msg)) return false;
+  return /DH-906|Order_Error|Invalid Token|Invalid Authentication|DH-901|401|403|Unauthorized|Forbidden|Authentication Failed/i.test(msg);
 }
 
 export function runWithDhan<T>(creds: DhanCredentials | undefined, fn: () => T): T {
@@ -94,13 +107,17 @@ export function dhanFingerprint(): string {
 
 function headers(): HeadersInit {
   const c = activeDhan();
-  return {
+  const h: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "application/json",
     "access-token": c.accessToken,
-    "client-id": c.clientId,
-    dhanClientId: c.clientId,
   };
+  const id = c.clientId?.trim();
+  if (id) {
+    h["client-id"] = id;
+    h.dhanClientId = id;
+  }
+  return h;
 }
 
 async function readDhanError(res: Response, path: string): Promise<never> {
@@ -128,19 +145,48 @@ export interface DhanProfile {
   dataValidity?: string;
 }
 
-export async function dhanProfile(accessToken: string): Promise<DhanProfile> {
+export async function dhanProfile(accessToken: string, clientId?: string): Promise<DhanProfile> {
   const token = cleanDhanSecret(accessToken);
+  const id = cleanDhanSecret(clientId);
+  const reqHeaders: Record<string, string> = {
+    Accept: "application/json",
+    "access-token": token,
+  };
+  if (id) {
+    reqHeaders["client-id"] = id;
+    reqHeaders.dhanClientId = id;
+  }
   const res = await fetch(`${BASE}/profile`, {
     method: "GET",
-    headers: {
-      Accept: "application/json",
-      "access-token": token,
-    },
+    headers: reqHeaders,
     cache: "no-store",
     signal: AbortSignal.timeout(8000),
   });
-  if (!res.ok) await readDhanError(res, "/profile");
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Dhan /profile ${res.status}: ${text.slice(0, 280)}`);
+  }
   return (await res.json()) as DhanProfile;
+}
+
+/** Prove the JWT can read Data APIs. /profile is optional (trading-only on many plans). */
+export async function dhanVerifyDataAccess(creds: DhanCredentials): Promise<{
+  profile: DhanProfile | null;
+  clientId: string;
+  nifty: number | null;
+}> {
+  let profile: DhanProfile | null = null;
+  try {
+    profile = await dhanProfile(creds.accessToken, creds.clientId);
+  } catch (err) {
+    if (!isOptionalDhanProfileError(err)) throw err;
+  }
+  const clientId = (profile?.dhanClientId?.trim() || creds.clientId || "").trim();
+  const nifty = await runWithDhan({ accessToken: creds.accessToken, clientId }, async () => {
+    const ltp = await dhanIndexLtp([13]);
+    return ltp["13"] ?? Object.values(ltp)[0] ?? null;
+  });
+  return { profile, clientId, nifty };
 }
 
 /** Extends a still-valid web JWT by 24h. Fails once the token has already expired. */
