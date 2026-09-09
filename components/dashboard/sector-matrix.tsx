@@ -251,26 +251,43 @@ export function SectorMatrix({
           </p>
           <p className="text-[11px] text-slate-500">{cells.length} names</p>
         </div>
-        <div className={cn("grid gap-1 overflow-auto", compact ? "max-h-[168px] grid-cols-3 sm:grid-cols-4" : "grid-cols-3 sm:grid-cols-4 xl:grid-cols-5")}>
-          {cells.map((c) => {
-            const up = c.changePct >= 0;
-            return (
-              <button
-                key={c.symbol}
-                type="button"
-                onClick={() => onOpen?.(c.symbol)}
-                className={cn("rounded-md px-1.5 py-1.5 text-left", heatTone(c.changePct))}
-                title={`${c.name} ${up ? "+" : ""}${c.changePct.toFixed(2)}%`}
-              >
-                <p className="truncate font-mono text-[11px] font-semibold">{c.symbol}</p>
-                <p className="font-mono text-[12px] font-medium tabular-nums">
-                  {up ? "+" : ""}
-                  {c.changePct.toFixed(2)}%
-                </p>
-              </button>
-            );
-          })}
-        </div>
+        {(["above", "below"] as const).map((side) => {
+          const rows = cells
+            .filter((c) => (side === "above" ? c.changePct >= 0 : c.changePct < 0))
+            .sort((a, b) => (side === "above" ? b.changePct - a.changePct : a.changePct - b.changePct));
+          return (
+            <div key={side} className="mb-2 last:mb-0">
+              <p className={cn("mb-1 text-[11px] font-medium", side === "above" ? "text-emerald-300" : "text-rose-300")}>
+                {side === "above" ? "Above previous close" : "Below previous close"}
+                <span className="ml-1 font-normal text-slate-500">{rows.length}</span>
+              </p>
+              {rows.length ? (
+                <div className={cn("grid gap-1", compact ? "grid-cols-3 sm:grid-cols-4" : "grid-cols-3 sm:grid-cols-4 xl:grid-cols-5")}>
+                  {rows.map((c) => {
+                    const up = c.changePct >= 0;
+                    return (
+                      <button
+                        key={c.symbol}
+                        type="button"
+                        onClick={() => onOpen?.(c.symbol)}
+                        className={cn("rounded-md px-1.5 py-1.5 text-left", heatTone(c.changePct))}
+                        title={`${c.name} ${up ? "+" : ""}${c.changePct.toFixed(2)}%`}
+                      >
+                        <p className="truncate font-mono text-[11px] font-semibold">{c.symbol}</p>
+                        <p className="font-mono text-[12px] font-medium tabular-nums">
+                          {up ? "+" : ""}
+                          {c.changePct.toFixed(2)}%
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-[11px] text-slate-500">None on this tape.</p>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {compact ? null : (
