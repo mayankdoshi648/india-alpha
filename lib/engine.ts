@@ -423,6 +423,8 @@ async function tryLiveIndices(): Promise<Record<string, LivePx>> {
       };
       out[idx.index] = row;
       if (/SENSEX/i.test(idx.index) && !out.SENSEX) out.SENSEX = row;
+      if (idx.index === "NIFTY SMALLCAP 250") out["NIFTY SMLCAP 250"] = row;
+      if (idx.index === "NIFTY SMLCAP 250") out["NIFTY SMALLCAP 250"] = row;
     }
   } catch {
     // yahoo fill
