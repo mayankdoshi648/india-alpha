@@ -41,7 +41,7 @@ type Point = {
   nudge: number;
 };
 
-function SectorDot(color: string) {
+function SectorDot(color: string, onPick: (name: string) => void) {
   return function Shape(props: { cx?: number; cy?: number; payload?: Point }) {
     const { cx = 0, cy = 0, payload } = props;
     const name = payload?.name ?? "";
@@ -49,7 +49,13 @@ function SectorDot(color: string) {
     const tx = goLeft ? cx - 11 : cx + 11;
     const ty = cy + 4 + (payload?.nudge ?? 0);
     return (
-      <g>
+      <g
+        style={{ cursor: "pointer" }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (name) onPick(name);
+        }}
+      >
         <circle cx={cx} cy={cy} r={7.5} fill={color} stroke="#070b14" strokeWidth={2} />
         <circle cx={cx} cy={cy} r={3} fill="#070b14" opacity={0.35} />
         <text
@@ -163,7 +169,7 @@ export function SectorMatrix({
           <div>
             <p className="text-sm font-medium">Sector rotation · four coloured quadrants</p>
             <p className="text-[11px] text-muted-foreground">
-              Each coloured dot is a sector, labelled by name. X = 3-month RS vs Nifty · Y = RS momentum
+              Each coloured dot is a sector, labelled by name. Click a dot, tile, or name to load constituents. X = 3-month RS vs Nifty · Y = RS momentum
             </p>
           </div>
           <div className="flex flex-wrap gap-3 text-[12px]">
@@ -242,16 +248,21 @@ export function SectorMatrix({
                   return row?.name ? `${row.name} · ${QUAD[row.quadrant]}` : "";
                 }}
               />
-              {QUADS.map((q) => (
-                <Scatter
-                  key={q}
-                  name={QUAD[q]}
-                  data={points.filter((p) => p.quadrant === q)}
-                  fill={QUAD_COLOR[q]}
-                  shape={SectorDot(QUAD_COLOR[q])}
-                  isAnimationActive={false}
-                />
-              ))}
+                {QUADS.map((q) => (
+                  <Scatter
+                    key={q}
+                    name={QUAD[q]}
+                    data={points.filter((p) => p.quadrant === q)}
+                    fill={QUAD_COLOR[q]}
+                    shape={SectorDot(QUAD_COLOR[q], setSector)}
+                    isAnimationActive={false}
+                    onClick={(item) => {
+                      const row = item as Point & { payload?: Point };
+                      const name = row?.name ?? row.payload?.name;
+                      if (name) setSector(name);
+                    }}
+                  />
+                ))}
             </ScatterChart>
           </ResponsiveContainer>
         </div>

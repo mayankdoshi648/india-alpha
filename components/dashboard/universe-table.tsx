@@ -163,11 +163,12 @@ export function UniverseTable({
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
+      <div id="universe-quad-counts" className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
         {QUADS.map((q) => (
           <button
             key={q}
             type="button"
+            aria-pressed={quad === q}
             onClick={() => setQuad(quad === q ? "all" : q)}
             className={cn(
               "rounded-xl border px-3 py-2 text-left",
@@ -265,7 +266,11 @@ export function UniverseTable({
         ))}
       </div>
       <p className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-        <span>{stats.n} names in view</span>
+        <span>
+          {stats.n} names in view
+          {quad !== "all" ? ` · ${QUAD[quad]} only` : ""}
+          {sector !== "all" ? ` · ${sector}` : ""}
+        </span>
         <button
           type="button"
           id="export-universe-csv"
