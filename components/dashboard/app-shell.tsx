@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import type { ChartPoint, DashboardSnapshot, DhanCredentials, StockFo, StrategySettings, SwingSetup, UniverseId } from "@/lib/types";
 import { DEFAULT_SETTINGS, STRATEGY_TEMPLATES, isDefaultSettings } from "@/lib/settings";
 import { SettingsPanel } from "@/components/dashboard/settings-panel";
@@ -48,34 +49,10 @@ const EMPTY_WATCH: WatchStore = {
 
 const EMPTY_DHAN: DhanCredentials = { accessToken: "", clientId: "" };
 
-type DeskView = "desk" | "patterns";
+export type DeskView = "desk" | "patterns";
 
-function readDeskView(): DeskView {
-  try {
-    const q = new URLSearchParams(window.location.search).get("view");
-    if (q === "desk" || q === "patterns") return q;
-    const saved = localStorage.getItem("imd-view");
-    if (saved === "desk" || saved === "patterns") return saved;
-  } catch {
-    // ignore
-  }
-  return "patterns";
-}
-
-function persistDeskView(view: DeskView) {
-  try {
-    localStorage.setItem("imd-view", view);
-    const url = new URL(window.location.href);
-    url.searchParams.set("view", view);
-    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-  } catch {
-    // ignore
-  }
-}
-
-export function MarketDesk() {
+export function MarketDesk({ view }: { view: DeskView }) {
   const [universe, setUniverse] = useState<UniverseId>("nifty50");
-  const [view, setView] = useState<DeskView>("patterns");
   const [settings, setSettings] = useState<StrategySettings>(DEFAULT_SETTINGS);
   const [data, setData] = useState<DashboardSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -97,11 +74,6 @@ export function MarketDesk() {
   const persistWatch = (next: WatchStore) => {
     setWatch(next);
     localStorage.setItem("imd-watch", JSON.stringify(next));
-  };
-
-  const setDeskView = (next: DeskView) => {
-    setView(next);
-    persistDeskView(next);
   };
 
   const loadTape = useCallback(async (
@@ -179,9 +151,6 @@ export function MarketDesk() {
         nextUniverse = "nifty500";
         setUniverse("nifty500");
       }
-      const nextView = readDeskView();
-      setView(nextView);
-      persistDeskView(nextView);
       const d = localStorage.getItem("imd-dhan");
       if (d) {
         const parsed = JSON.parse(d) as DhanCredentials;
@@ -372,13 +341,14 @@ export function MarketDesk() {
             <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sky-400/15 text-sky-300">
               <Landmark className="size-4" />
             </div>
-            <p className="text-[13px] font-semibold tracking-tight text-white">India Market Desk</p>
+            <Link href="/" className="text-[13px] font-semibold tracking-tight text-white hover:text-sky-200">
+              India Market Desk
+            </Link>
           </div>
           <div className="flex shrink-0 overflow-hidden rounded-md border border-amber-400/40">
-            <button
-              type="button"
+            <Link
+              href="/"
               id="view-patterns"
-              onClick={() => setDeskView("patterns")}
               className={`inline-flex h-8 items-center px-3 text-[13px] font-medium ${view === "patterns" ? "bg-amber-400/20 text-amber-100" : "text-amber-200/70 hover:bg-amber-400/10"}`}
             >
               Chart patterns
@@ -387,15 +357,14 @@ export function MarketDesk() {
                   {data.chartPatterns.length}
                 </span>
               ) : null}
-            </button>
-            <button
-              type="button"
+            </Link>
+            <Link
+              href="/desk"
               id="view-desk"
-              onClick={() => setDeskView("desk")}
-              className={`h-8 px-3 text-[13px] ${view === "desk" ? "bg-amber-400/20 text-amber-100" : "text-slate-400 hover:bg-white/5"}`}
+              className={`inline-flex h-8 items-center px-3 text-[13px] ${view === "desk" ? "bg-amber-400/20 text-amber-100" : "text-slate-400 hover:bg-white/5"}`}
             >
               Desk
-            </button>
+            </Link>
           </div>
           <div className="flex w-full flex-wrap items-center gap-1.5 sm:ml-auto sm:w-auto">
               <div className="flex overflow-hidden rounded-md border border-white/10">
@@ -502,7 +471,8 @@ export function MarketDesk() {
               <div className="flex min-h-0 flex-1 flex-col gap-2.5">
                 <WatchStrip data={data} />
                 <IndexTiles tiles={data.indices} />
-                <section className="shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[#121b2c] p-3">
+                {/* Bounded so a full-universe close grid scrolls itself instead of crushing the pattern table. */}
+                <section className="max-h-[45vh] shrink-0 overflow-auto rounded-xl border border-white/10 bg-[#121b2c] p-3">
                   <SectorMatrix
                     sectors={data.sectors}
                     heatmap={data.heatmap}
@@ -512,7 +482,7 @@ export function MarketDesk() {
                 </section>
                 <section
                   id="breakout-patterns"
-                  className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-amber-400/50 bg-[#121b2c]"
+                  className="flex min-h-[360px] flex-1 flex-col overflow-hidden rounded-xl border border-amber-400/50 bg-[#121b2c]"
                 >
                   <div className="shrink-0 border-b border-amber-400/20 px-4 py-3">
                     <h1 className="text-lg font-semibold tracking-tight text-white">Chart patterns</h1>
