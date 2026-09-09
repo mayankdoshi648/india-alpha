@@ -136,10 +136,17 @@ export function SectorMatrix({
         .sort((a, b) => b.score - a.score),
     [sectors],
   );
-  const [sector, setSector] = useState<string | null>(ranked[0]?.name ?? sectors[0]?.name ?? null);
-  const cells = heatmap
-    .filter((h) => !sector || h.sector === sector)
-    .sort((a, b) => b.changePct - a.changePct);
+  const [sector, setSector] = useState<string | null>(null);
+  const known = useMemo(() => new Set(heatmap.map((h) => h.sector)), [heatmap]);
+  // A pick made against an earlier tape can name a sector this tape no longer carries.
+  const active = sector && known.has(sector) ? sector : null;
+  const cells = useMemo(
+    () =>
+      heatmap
+        .filter((h) => !active || h.sector === active)
+        .sort((a, b) => b.changePct - a.changePct),
+    [heatmap, active],
+  );
   const points = useMemo(
     () =>
       nudgeLabels(
@@ -192,7 +199,7 @@ export function SectorMatrix({
           <tbody>
             {ranked.map((s, i) => {
               const ad = s.advances + s.declines;
-              const selected = sector === s.name;
+              const selected = active === s.name;
               return (
                 <tr
                   key={s.id}
@@ -200,7 +207,7 @@ export function SectorMatrix({
                     "cursor-pointer border-t border-white/8",
                     selected ? "bg-cyan-400/10" : "hover:bg-white/5",
                   )}
-                  onClick={() => setSector(s.name)}
+                  onClick={() => setSector((cur) => (cur === s.name ? null : s.name))}
                 >
                   <td className="px-2 py-1.5 font-mono text-slate-500 tabular-nums">{i + 1}</td>
                   <td className="px-2 py-1.5 font-medium text-white">{s.name}</td>
@@ -246,10 +253,21 @@ export function SectorMatrix({
       <div>
         <div className="mb-1.5 flex items-baseline justify-between gap-2">
           <p className="text-[12px] font-medium text-white">
-            {sector ? `${sector} closes` : "Stock closes"}
+            {active ? `${active} closes` : "All sector closes"}
             <span className="ml-1.5 font-normal text-slate-500">1D % above / below previous close</span>
           </p>
-          <p className="text-[11px] text-slate-500">{cells.length} names</p>
+          <div className="flex shrink-0 items-baseline gap-2">
+            <p className="text-[11px] text-slate-500">{cells.length} names</p>
+            {active ? (
+              <button
+                type="button"
+                onClick={() => setSector(null)}
+                className="rounded border border-white/15 px-1.5 py-px text-[11px] text-slate-300 hover:bg-white/10"
+              >
+                Show all
+              </button>
+            ) : null}
+          </div>
         </div>
         {(["above", "below"] as const).map((side) => {
           const rows = cells
