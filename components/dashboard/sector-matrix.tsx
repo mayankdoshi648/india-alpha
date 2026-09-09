@@ -257,8 +257,7 @@ export function SectorMatrix({
                     shape={SectorDot(QUAD_COLOR[q], setSector)}
                     isAnimationActive={false}
                     onClick={(item) => {
-                      const row = item as Point & { payload?: Point };
-                      const name = row?.name ?? row.payload?.name;
+                      const name = item.payload?.name as string | undefined;
                       if (name) setSector(name);
                     }}
                   />
