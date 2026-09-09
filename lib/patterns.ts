@@ -1,10 +1,12 @@
 import { ema, last, rsi, sma, stdev } from "@/lib/indicators";
-import type { OhlcBar, PatternKind, StrategySettings } from "@/lib/types";
+import type { OhlcBar, PatternKind, StrategySettings, SwingSetup } from "@/lib/types";
+import { analyzeBreakout, analyzeVcp } from "@/lib/swing";
 
 export interface PatternResult {
   kind: PatternKind;
   detail: string;
   score: number;
+  swing?: SwingSetup;
 }
 
 function localPivots(values: number[], left = 3, right = 3): { i: number; type: "h" | "l" }[] {
@@ -39,7 +41,6 @@ export function detectPatterns(
 ): PatternResult[] {
   const hits: PatternResult[] = [];
   const closes = bars.map((b) => b.close);
-  const volumes = bars.map((b) => b.volume);
   const rsiSeries = rsi(closes, settings.rsiPeriod);
   const pivots = localPivots(closes);
   const rsiPivots = localPivots(rsiSeries);
@@ -99,11 +100,15 @@ export function detectPatterns(
     });
   }
 
-  const vcp = detectVcp(closes, volumes);
-  if (vcp) hits.push(vcp);
+  const vcp = analyzeVcp(bars, settings);
+  if (vcp) {
+    hits.push({ kind: "vcp", detail: vcp.nextAction, score: vcp.score, swing: vcp });
+  }
 
-  const brk = detectBreakout(bars, settings);
-  if (brk) hits.push(brk);
+  const brk = analyzeBreakout(bars, settings);
+  if (brk) {
+    hits.push({ kind: "breakout", detail: brk.nextAction, score: brk.score, swing: brk });
+  }
 
   if (extras.stage2Score >= 5) {
     hits.push({
@@ -146,49 +151,6 @@ export function detectPatterns(
     seen.add(h.kind);
     return true;
   });
-}
-
-function detectVcp(closes: number[], volumes: number[]): PatternResult | null {
-  if (closes.length < 60) return null;
-  const windows = [21, 13, 8];
-  const ranges: number[] = [];
-  let cursor = closes.length;
-  for (const w of windows) {
-    const slice = closes.slice(Math.max(0, cursor - w), cursor);
-    if (slice.length < 5) return null;
-    ranges.push((Math.max(...slice) - Math.min(...slice)) / slice[slice.length - 1]);
-    cursor -= Math.floor(w * 0.7);
-  }
-  const contracting = ranges[0] > ranges[1] && ranges[1] > ranges[2] && ranges[2] < 0.08;
-  const volDry =
-    sma(volumes.slice(-8), 8).at(-1)! < sma(volumes.slice(-30), 20).at(-1)! * 0.85;
-  if (!contracting) return null;
-  return {
-    kind: "vcp",
-    detail: `3 contractions ${(ranges[0] * 100).toFixed(1)}→${(ranges[2] * 100).toFixed(1)}%`,
-    score: volDry ? 82 : 70,
-  };
-}
-
-function detectBreakout(bars: OhlcBar[], settings: StrategySettings): PatternResult | null {
-  if (bars.length < 40) return null;
-  const base = bars.slice(-40, -1);
-  const lastBar = last(bars);
-  const baseHigh = Math.max(...base.map((b) => b.high));
-  const baseLow = Math.min(...base.map((b) => b.low));
-  const range = (baseHigh - baseLow) / lastBar.close;
-  const avgVol = sma(base.map((b) => b.volume), settings.volumeAvgDays).at(-1) ?? 1;
-  const volOk = lastBar.volume >= avgVol * settings.breakoutVolumeMult;
-  const broke = lastBar.close > baseHigh * 1.002;
-  const retraceOk = range <= settings.breakoutRetracePct / 100;
-  if (broke && volOk && retraceOk && range < 0.18) {
-    return {
-      kind: "breakout",
-      detail: `Base high ${baseHigh.toFixed(1)} cleared on ${ (lastBar.volume / avgVol).toFixed(1)}x volume`,
-      score: 86,
-    };
-  }
-  return null;
 }
 
 export function stage2Checklist(

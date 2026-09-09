@@ -9,7 +9,7 @@ import type {
   PatternHit,
   StockRow,
 } from "@/lib/types";
-import { PATTERN_LABEL, compact, inr, signed } from "@/lib/format";
+import { PATTERN_LABEL, compact, inr, signed, SWING_STATUS } from "@/lib/format";
 import { Chg, EmaPills } from "@/components/dashboard/primitives";
 import { SectorMatrix } from "@/components/dashboard/sector-matrix";
 import { UniverseTable } from "@/components/dashboard/universe-table";
@@ -194,17 +194,34 @@ function AlertList({ alerts, onPick }: { alerts: DeskAlert[]; onPick: (s: string
 
 function SetupList({ hits, onPick }: { hits: PatternHit[]; onPick: (s: string) => void }) {
   if (!hits.length) return <p className="text-sm text-slate-500">No qualified setups.</p>;
+  const swing = hits.filter((h) => h.kind === "vcp" || h.kind === "breakout");
+  const rest = hits.filter((h) => h.kind !== "vcp" && h.kind !== "breakout");
+  const ordered = [...swing, ...rest].slice(0, 12);
   return (
-    <div className="space-y-1">
-      {hits.slice(0, 8).map((h) => (
+    <div className="space-y-1.5">
+      <p className="text-[11px] leading-snug text-slate-500">
+        VCP: tighter pullbacks, buy stop above the last pivot. Breakout: 55d high, volume, stop under the handle. Click a name for legs, 1R/2R and the checklist.
+      </p>
+      {ordered.map((h) => (
         <button
           key={`${h.symbol}-${h.kind}`}
           type="button"
+          id={`setup-${h.kind}-${h.symbol}`}
           onClick={() => onPick(h.symbol)}
-          className="flex w-full items-center gap-2 rounded-md px-1 py-1 text-left hover:bg-white/5"
+          className="flex w-full items-start gap-2 rounded-md px-1 py-1 text-left hover:bg-white/5"
         >
-          <span className="w-[88px] truncate text-[13px] font-medium text-white">{h.symbol}</span>
-          <span className="min-w-0 flex-1 truncate text-[12px] text-slate-400">{PATTERN_LABEL[h.kind]}</span>
+          <span className="w-[76px] shrink-0 truncate text-[13px] font-medium text-white">{h.symbol}</span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[12px] text-slate-200">{PATTERN_LABEL[h.kind]}</span>
+            <span className="block truncate text-[11px] text-slate-500">
+              {h.swing
+                ? `${SWING_STATUS[h.swing.status] ?? h.swing.status} · buy ${inr(h.swing.entry, 0)} · stop ${inr(h.swing.stop, 0)} · ${h.swing.rr.toFixed(1)}R`
+                : h.detail}
+            </span>
+            {h.swing ? (
+              <span className="mt-0.5 block line-clamp-2 text-[11px] text-slate-400">{h.swing.nextAction}</span>
+            ) : null}
+          </span>
           <Chg value={h.change1d} />
         </button>
       ))}
@@ -338,7 +355,7 @@ export function DeskBoard({
           <Pane title="Alerts" className="xl:max-h-[26%]">
             <AlertList alerts={data.alerts ?? []} onPick={onOpen} />
           </Pane>
-          <Pane title="Setups" className="xl:max-h-[22%]">
+          <Pane title="Swing · VCP / breakout" className="xl:max-h-[34%]">
             <SetupList hits={data.patterns} onPick={onOpen} />
           </Pane>
           <Pane title="F&O · index + stocks" className="xl:flex-1">

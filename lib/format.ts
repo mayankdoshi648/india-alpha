@@ -52,3 +52,12 @@ export const PATTERN_TONE: Record<string, string> = {
   pivot_reclaim: "bg-sky-500/15 text-sky-300 border-sky-500/30",
   oversold_pullback: "bg-lime-500/15 text-lime-300 border-emerald-500/30",
 };
+
+export const SWING_STATUS: Record<string, string> = {
+  coiling: "Coiling",
+  at_pivot: "At pivot",
+  triggered: "Triggered",
+  throwback: "Throwback",
+  extended: "Extended",
+  failed: "Failed",
+};

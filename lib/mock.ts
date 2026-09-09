@@ -60,10 +60,10 @@ function applyPattern(symbol: string, bars: OhlcBar[]): OhlcBar[] {
     last.volume *= 2.8;
   }
 
-  if (["TRENT", "PERSISTENT", "POLYCAB"].includes(symbol)) {
-    const windows = [24, 14, 8];
+  if (["TRENT", "TITAN", "PERSISTENT", "POLYCAB"].includes(symbol)) {
+    const windows = [28, 16, 10, 6];
     let cursor = n - 2;
-    let scale = 0.14;
+    let scale = 0.16;
     for (const w of windows) {
       for (let i = cursor - w; i < cursor; i++) {
         if (i < 0) continue;
@@ -73,11 +73,14 @@ function applyPattern(symbol: string, bars: OhlcBar[]): OhlcBar[] {
         out[i].close = mid + Math.sin(x * Math.PI * 2) * amp * 0.35;
         out[i].high = out[i].close + amp * 0.4;
         out[i].low = out[i].close - amp * 0.4;
-        out[i].volume *= 0.72;
+        out[i].volume *= 0.68;
       }
-      cursor -= Math.floor(w * 0.65);
-      scale *= 0.55;
+      cursor -= Math.floor(w * 0.62);
+      scale *= 0.52;
     }
+    last.close = Math.min(last.close, Math.max(...out.slice(n - 8, n - 1).map((b) => b.high)) * 0.996);
+    last.high = Math.max(last.high, last.close * 1.004);
+    last.volume *= 0.7;
   }
 
   if (["SOLARINDS", "KAYNES", "RVNL"].includes(symbol)) {

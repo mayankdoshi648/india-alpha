@@ -48,6 +48,10 @@ export function exportUniverseCsv(rows: StockRow[]): string {
     "vwapDist",
     "daysAbove20",
     "rv20",
+    "vcpStatus",
+    "vcpPivot",
+    "breakoutStatus",
+    "breakoutPivot",
     "patterns",
   ];
   const lines = [headers.join(",")];
@@ -99,6 +103,10 @@ export function exportUniverseCsv(rows: StockRow[]): string {
       r.vwapDist,
       r.daysAbove20,
       r.rv20,
+      r.vcp?.status ?? "",
+      r.vcp?.pivot ?? "",
+      r.breakout?.status ?? "",
+      r.breakout?.pivot ?? "",
       `"${r.patterns.join("|")}"`,
     ];
     lines.push(cells.join(","));

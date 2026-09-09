@@ -72,7 +72,7 @@ import type {
   UniverseId,
 } from "@/lib/types";
 
-const CACHE_VER = 8;
+const CACHE_VER = 10;
 const cache = new Map<string, { at: number; value: DashboardSnapshot }>();
 
 function overlayLast(bars: OhlcBar[], close: number, changePct?: number): OhlcBar[] {
@@ -549,6 +549,8 @@ export async function buildSnapshot(
       daysAbove20: runDaysAbove(closes, settings.emaShort),
       rv20: realizedVol(closes, 20),
       fo: demoStockFo(s.symbol, lastBar.close, round(pct(prev.close, lastBar.close), 2), nextThursday(asOf)),
+      vcp: detected.find((d) => d.kind === "vcp")?.swing ?? null,
+      breakout: detected.find((d) => d.kind === "breakout")?.swing ?? null,
     };
     if (row.fo) row.oiBuild = row.fo.oiBuild;
     stocks.push(row);
@@ -562,6 +564,7 @@ export async function buildSnapshot(
         cmp: row.cmp,
         change1d: row.change1d,
         score: round(d.score, 0),
+        swing: d.swing,
       });
     }
   }
@@ -839,8 +842,24 @@ function buildAlerts(input: {
     alerts.push({
       id: `bo-${p.symbol}`,
       tone: "setup",
-      title: `${p.symbol} qualified base breakout`,
-      detail: p.detail,
+      title: `${p.symbol} ${p.swing?.status === "at_pivot" ? "at breakout pivot" : p.swing?.status === "throwback" ? "breakout throwback" : "qualified base breakout"}`,
+      detail: p.swing?.nextAction ?? p.swing?.summary ?? p.detail,
+      symbol: p.symbol,
+    });
+  }
+  const vcps = input.patterns
+    .filter(
+      (p) =>
+        p.kind === "vcp" &&
+        (p.swing?.status === "at_pivot" || p.swing?.status === "coiling" || p.swing?.status === "throwback"),
+    )
+    .slice(0, 2);
+  for (const p of vcps) {
+    alerts.push({
+      id: `vcp-${p.symbol}`,
+      tone: "setup",
+      title: `${p.symbol} VCP ${(p.swing?.status ?? "setup").replaceAll("_", " ")}`,
+      detail: p.swing?.nextAction ?? p.swing?.summary ?? p.detail,
       symbol: p.symbol,
     });
   }

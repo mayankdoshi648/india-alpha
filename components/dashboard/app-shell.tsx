@@ -7,6 +7,7 @@ import { SettingsPanel } from "@/components/dashboard/settings-panel";
 import { SessionBar } from "@/components/dashboard/session-bar";
 import { StockChart } from "@/components/dashboard/stock-chart";
 import { StockFoPanel } from "@/components/dashboard/stock-fo";
+import { SwingPanel } from "@/components/dashboard/swing-setup";
 import { DeskBoard } from "@/components/dashboard/board";
 import { DeskErrorBoundary } from "@/components/dashboard/error-boundary";
 import { Panel, Drawer } from "@/components/dashboard/primitives";
@@ -414,6 +415,7 @@ export function MarketDesk() {
                 <Chg value={row.change1d} />
               </div>
               <StockChart points={chart.length ? chart : row.chart ?? []} emas={row.emas} />
+              <SwingPanel vcp={row.vcp} breakout={row.breakout} />
               {fo ? <StockFoPanel fo={fo} /> : null}
               <EmaPills emas={row.emas} />
               <div className="flex flex-wrap gap-1">

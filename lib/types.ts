@@ -15,6 +15,50 @@ export type PatternKind =
   | "pivot_reclaim"
   | "oversold_pullback";
 
+export type SwingStatus = "coiling" | "at_pivot" | "triggered" | "throwback" | "extended" | "failed";
+
+export interface VcpLeg {
+  depthPct: number;
+  bars: number;
+  high: number;
+  low: number;
+  volDryPct?: number;
+}
+
+export interface SwingCheck {
+  label: string;
+  ok: boolean;
+}
+
+export interface SwingSetup {
+  kind: "vcp" | "breakout";
+  status: SwingStatus;
+  score: number;
+  pivot: number;
+  entry: number;
+  stop: number;
+  target: number;
+  target1R: number;
+  target2R: number;
+  riskPct: number;
+  rewardPct: number;
+  rr: number;
+  distToPivotPct: number;
+  extFrom10Pct: number;
+  baseDays: number;
+  baseDepthPct: number;
+  tightnessPct: number;
+  volDryPct: number;
+  handleDepthPct: number;
+  breakoutVolX: number;
+  closeInRangePct: number;
+  contractions: VcpLeg[];
+  checklist: SwingCheck[];
+  nextAction: string;
+  notes: string[];
+  summary: string;
+}
+
 export interface UniverseStock {
   symbol: string;
   name: string;
@@ -213,6 +257,8 @@ export interface StockRow {
   daysAbove20: number;
   rv20: number;
   fo: StockFo | null;
+  vcp: SwingSetup | null;
+  breakout: SwingSetup | null;
 }
 
 export interface OptionStrike {
@@ -273,6 +319,7 @@ export interface PatternHit {
   cmp: number;
   change1d: number;
   score: number;
+  swing?: SwingSetup;
 }
 
 export interface BreadthPoint {
