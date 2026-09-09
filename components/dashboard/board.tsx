@@ -15,7 +15,6 @@ import { SectorMatrix } from "@/components/dashboard/sector-matrix";
 import { UniverseTable } from "@/components/dashboard/universe-table";
 import { DeskErrorBoundary } from "@/components/dashboard/error-boundary";
 import { StockFoList } from "@/components/dashboard/stock-fo";
-import { ChartPatternBoard } from "@/components/dashboard/chart-pattern-board";
 import { cn } from "@/lib/utils";
 
 function Pane({
@@ -351,16 +350,7 @@ export function DeskBoard({
   return (
     <div className="flex flex-1 flex-col gap-2.5 xl:min-h-0">
       <WatchStrip data={data} />
-      <Pane
-        id="breakout-patterns"
-        title={`Chart patterns · triangles, flags, wedges, H&S · ${data.chartPatterns?.length ?? 0}`}
-        className="shrink-0 scroll-mt-16 border-amber-400/40 xl:overflow-visible"
-      >
-        <DeskErrorBoundary>
-          <ChartPatternBoard hits={data.chartPatterns ?? []} universe={data.universe} onOpen={onOpen} />
-        </DeskErrorBoundary>
-      </Pane>
-      <div className="grid grid-cols-1 gap-2.5 xl:min-h-0 xl:flex-1 xl:grid-cols-[20rem_minmax(0,1fr)_22rem] xl:grid-rows-[minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-2.5 xl:min-h-[42rem] xl:flex-1 xl:grid-cols-[20rem_minmax(0,1fr)_22rem] xl:grid-rows-[minmax(0,1fr)]">
         <div className="flex flex-col gap-2.5 xl:min-h-0">
           <Pane title="Index tape" className="xl:max-h-[34%]">
             <IndexList tiles={data.indices} />
