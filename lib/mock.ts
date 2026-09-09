@@ -61,26 +61,30 @@ function applyPattern(symbol: string, bars: OhlcBar[]): OhlcBar[] {
   }
 
   if (["TRENT", "TITAN", "PERSISTENT", "POLYCAB"].includes(symbol)) {
-    const windows = [28, 16, 10, 6];
-    let cursor = n - 2;
-    let scale = 0.16;
-    for (const w of windows) {
-      for (let i = cursor - w; i < cursor; i++) {
-        if (i < 0) continue;
-        const mid = out[cursor - 1].close;
-        const amp = scale * mid;
-        const x = (i - (cursor - w)) / w;
-        out[i].close = mid + Math.sin(x * Math.PI * 2) * amp * 0.35;
-        out[i].high = out[i].close + amp * 0.4;
-        out[i].low = out[i].close - amp * 0.4;
-        out[i].volume *= 0.68;
-      }
-      cursor -= Math.floor(w * 0.62);
-      scale *= 0.52;
+    const start = Math.max(0, n - 56);
+    const seed = out[start].close;
+    for (let i = start; i < n - 1; i++) {
+      const idx = i - start;
+      const phase =
+        idx < 16 ? { depth: 0.15, len: 16 } :
+        idx < 30 ? { depth: 0.09, len: 14 } :
+        idx < 42 ? { depth: 0.055, len: 12 } :
+        { depth: 0.032, len: 8 };
+      const local = ((idx % phase.len) / phase.len);
+      const pull = Math.sin(local * Math.PI) * phase.depth;
+      const mid = seed * (1 + idx * 0.0015);
+      out[i].close = Number((mid * (1 - pull * 0.45)).toFixed(2));
+      out[i].high = Number((mid * (1 + phase.depth * 0.12)).toFixed(2));
+      out[i].low = Number((mid * (1 - phase.depth)).toFixed(2));
+      out[i].open = out[i].close;
+      out[i].volume = Math.round(out[i].volume * (idx > 40 ? 0.52 : 0.78));
     }
-    last.close = Math.min(last.close, Math.max(...out.slice(n - 8, n - 1).map((b) => b.high)) * 0.996);
-    last.high = Math.max(last.high, last.close * 1.004);
-    last.volume *= 0.7;
+    const coilHigh = Math.max(...out.slice(n - 9, n - 1).map((b) => b.high));
+    last.close = Number((coilHigh * 0.994).toFixed(2));
+    last.high = Number((last.close * 1.004).toFixed(2));
+    last.low = Number((last.close * 0.991).toFixed(2));
+    last.open = last.close;
+    last.volume = Math.round(last.volume * 0.62);
   }
 
   if (["SOLARINDS", "KAYNES", "RVNL"].includes(symbol)) {

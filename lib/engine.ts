@@ -72,7 +72,7 @@ import type {
   UniverseId,
 } from "@/lib/types";
 
-const CACHE_VER = 10;
+const CACHE_VER = 11;
 const cache = new Map<string, { at: number; value: DashboardSnapshot }>();
 
 function overlayLast(bars: OhlcBar[], close: number, changePct?: number): OhlcBar[] {

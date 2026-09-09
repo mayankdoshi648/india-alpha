@@ -1,7 +1,7 @@
 import { ema, last, pct, round, sma } from "@/lib/indicators";
 import type { OhlcBar, StrategySettings, SwingCheck, SwingSetup, SwingStatus, VcpLeg } from "@/lib/types";
 
-const VCP_LAST_DEPTH_MAX = 10.5;
+const VCP_LAST_DEPTH_MAX = 12;
 const EXTENDED_VS_10 = 8;
 
 function windowStats(bars: OhlcBar[]) {
@@ -92,10 +92,47 @@ function checks(items: SwingCheck[]) {
   return items;
 }
 
-export function analyzeVcp(bars: OhlcBar[], settings: StrategySettings): SwingSetup | null {
-  if (bars.length < 50) return null;
-  const body = bars.slice(0, -1);
-  const lastBar = last(bars);
+function swingHighs(bars: OhlcBar[], left = 3, right = 3): number[] {
+  const out: number[] = [];
+  for (let i = left; i < bars.length - right; i++) {
+    const h = bars[i].high;
+    let isH = true;
+    for (let j = i - left; j <= i + right; j++) {
+      if (j === i) continue;
+      if (bars[j].high > h) isH = false;
+    }
+    if (isH) out.push(i);
+  }
+  return out;
+}
+
+function legsFromSlice(slice: OhlcBar[], priorVol: number): VcpLeg {
+  const st = windowStats(slice);
+  return {
+    depthPct: st.depthPct,
+    bars: st.bars,
+    high: round(st.high, 2),
+    low: round(st.low, 2),
+    volDryPct: priorVol ? round((1 - st.vol / Math.max(priorVol, 1)) * 100, 0) : 0,
+  };
+}
+
+function legsFromSwings(body: OhlcBar[]): VcpLeg[] {
+  const highs = swingHighs(body).slice(-6);
+  if (highs.length < 3) return [];
+  const legs: VcpLeg[] = [];
+  let priorVol = 0;
+  for (let k = 0; k < highs.length - 1; k++) {
+    const slice = body.slice(highs[k], highs[k + 1] + 1);
+    if (slice.length < 4) continue;
+    const st = windowStats(slice);
+    legs.push(legsFromSlice(slice, priorVol));
+    priorVol = st.vol;
+  }
+  return legs.slice(-4);
+}
+
+function legsFromWindows(body: OhlcBar[]): VcpLeg[] {
   const windows = [34, 21, 13, 8];
   const legs: VcpLeg[] = [];
   let cursor = body.length;
@@ -105,27 +142,39 @@ export function analyzeVcp(bars: OhlcBar[], settings: StrategySettings): SwingSe
     const slice = body.slice(from, cursor);
     if (slice.length < 6) break;
     const st = windowStats(slice);
-    const volDryPct = priorVol ? round((1 - st.vol / Math.max(priorVol, 1)) * 100, 0) : 0;
-    legs.push({
-      depthPct: st.depthPct,
-      bars: st.bars,
-      high: round(st.high, 2),
-      low: round(st.low, 2),
-      volDryPct,
-    });
+    legs.push(legsFromSlice(slice, priorVol));
     priorVol = st.vol;
     cursor = from + Math.floor(w * 0.28);
   }
   legs.reverse();
-  if (legs.length < 2) return null;
+  return legs;
+}
+
+function isContracting(legs: VcpLeg[]): { ok: boolean; tightening: number; lastDepth: number } {
+  if (legs.length < 2) return { ok: false, tightening: 0, lastDepth: 0 };
   const depths = legs.map((l) => l.depthPct);
   let tightening = 0;
   for (let i = 1; i < depths.length; i++) {
-    if (depths[i] < depths[i - 1] * 0.92) tightening++;
+    if (depths[i] < depths[i - 1] * 0.96) tightening++;
   }
   const lastDepth = depths[depths.length - 1];
-  const contracting = tightening >= Math.max(1, depths.length - 2) && lastDepth <= VCP_LAST_DEPTH_MAX;
-  if (!contracting) return null;
+  return { ok: tightening >= 1 && lastDepth <= VCP_LAST_DEPTH_MAX, tightening, lastDepth };
+}
+
+export function analyzeVcp(bars: OhlcBar[], settings: StrategySettings): SwingSetup | null {
+  if (bars.length < 50) return null;
+  const body = bars.slice(0, -1);
+  const lastBar = last(bars);
+  let legs = legsFromSwings(body);
+  let contraction = isContracting(legs);
+  if (!contraction.ok) {
+    legs = legsFromWindows(body);
+    contraction = isContracting(legs);
+  }
+  if (!contraction.ok) return null;
+  const tightening = contraction.tightening;
+  const lastDepth = contraction.lastDepth;
+  const depths = legs.map((l) => l.depthPct);
 
   const last8 = body.slice(-8);
   const last21 = body.slice(-21);
@@ -160,7 +209,7 @@ export function analyzeVcp(bars: OhlcBar[], settings: StrategySettings): SwingSe
     lastBar.high === lastBar.low ? 50 : round(((lastBar.close - lastBar.low) / (lastBar.high - lastBar.low)) * 100, 0);
   const checklist = checks([
     { label: `${legs.length} contractions (need ≥2)`, ok: legs.length >= 2 },
-    { label: `Each pullback shallower (${depths.map((d) => d.toFixed(1)).join("→")}%)`, ok: tightening >= Math.max(1, depths.length - 2) },
+    { label: `Each pullback shallower (${depths.map((d) => d.toFixed(1)).join("→")}%)`, ok: tightening >= 1 },
     { label: `Last leg ≤ ${VCP_LAST_DEPTH_MAX}% (now ${lastDepth}%)`, ok: lastDepth <= VCP_LAST_DEPTH_MAX },
     { label: `Volume dry-up ≥12% into the coil (now ${volDryPct}%)`, ok: volDryPct >= 12 },
     { label: `Last 8d tightness ≤55% of the 21d range (now ${tightnessPct}%)`, ok: tightnessPct <= 55 },

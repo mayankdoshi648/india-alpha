@@ -83,7 +83,7 @@ export function SettingsPanel({
         </Group>
         <Group title="Swing · VCP / breakout">
           <p className="col-span-2 text-[12px] leading-snug text-slate-400">
-            VCP needs 2+ contractions on 34/21/13/8-bar windows, last leg ≤10.5%, and volume dry-up into the pivot. Buy stop a tick above the last contraction high; stop under that low. Breakout uses the 55-day high as pivot. A usable equity base is typically &lt;22% deep. Trigger needs volume ≥ Breakout vol and a close in the upper half of the bar. A throwback to the 10 EMA is a second entry, not a fail. Do not chase if price is &gt;8% above the 10 EMA.
+            VCP needs 2+ contractions (swing highs, else 34/21/13/8-bar windows), last leg ≤12%, and volume dry-up into the pivot. Buy stop a tick above the last contraction high; stop under that low. Breakout uses the 55-day high as pivot. A usable equity base is typically &lt;22% deep. Trigger needs volume ≥ Breakout vol and a close in the upper half of the bar. A throwback to the 10 EMA is a second entry, not a fail. Do not chase if price is &gt;8% above the 10 EMA.
           </p>
           <Num label="Breakout vol" value={settings.breakoutVolumeMult} step={0.1} onChange={(v) => set("breakoutVolumeMult", v)} />
           <Num label="Retrace %" value={settings.breakoutRetracePct} onChange={(v) => set("breakoutRetracePct", v)} />
