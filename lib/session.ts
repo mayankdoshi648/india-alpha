@@ -20,6 +20,35 @@ function kolkataParts(now = new Date()) {
   };
 }
 
+export function indiaCalendarDate(now = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+/** IST calendar date, rolled back to Friday on weekends. */
+export function indiaMarketDate(now = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+  }).formatToParts(now);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  const iso = `${get("year")}-${get("month")}-${get("day")}`;
+  const wd = get("weekday");
+  const dt = new Date(`${iso}T00:00:00Z`);
+  if (wd === "Sat") dt.setUTCDate(dt.getUTCDate() - 1);
+  if (wd === "Sun") dt.setUTCDate(dt.getUTCDate() - 2);
+  return dt.toISOString().slice(0, 10);
+}
+
 export function indiaSession(now = new Date()): {
   phase: SessionPhase;
   label: string;

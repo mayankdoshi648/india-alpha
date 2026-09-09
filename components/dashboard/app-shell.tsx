@@ -10,6 +10,7 @@ import { StockFoPanel } from "@/components/dashboard/stock-fo";
 import { SwingPanel } from "@/components/dashboard/swing-setup";
 import { ChartPatternBoard, ChartPatternMini } from "@/components/dashboard/chart-pattern-board";
 import { DeskBoard, WatchStrip } from "@/components/dashboard/board";
+import { IndexTiles } from "@/components/dashboard/index-tiles";
 import { DeskErrorBoundary } from "@/components/dashboard/error-boundary";
 import { Panel, Drawer } from "@/components/dashboard/primitives";
 import { Button } from "@/components/ui/button";
@@ -499,6 +500,7 @@ export function MarketDesk() {
             {view === "patterns" ? (
               <div className="flex min-h-0 flex-1 flex-col gap-2.5">
                 <WatchStrip data={data} />
+                <IndexTiles tiles={data.indices} />
                 <section
                   id="breakout-patterns"
                   className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-amber-400/50 bg-[#121b2c]"

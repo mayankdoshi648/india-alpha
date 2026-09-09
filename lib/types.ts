@@ -139,6 +139,8 @@ export interface IndexTile {
   high: number;
   low: number;
   prevClose: number;
+  asOf: string;
+  spark: number[];
   emas: EmaStatus[];
 }
 

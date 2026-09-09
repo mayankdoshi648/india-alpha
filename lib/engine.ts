@@ -74,8 +74,10 @@ import type {
   UniverseId,
   UniverseStock,
 } from "@/lib/types";
+import { overlayLast } from "@/lib/ohlc";
+import { indiaMarketDate } from "@/lib/session";
 
-const CACHE_VER = 19;
+const CACHE_VER = 20;
 const cache = new Map<string, { at: number; value: DashboardSnapshot }>();
 
 export type SnapshotOpts = {
@@ -86,30 +88,6 @@ export type SnapshotOpts = {
 function liveFeedsEnabled(opts?: SnapshotOpts): boolean {
   if (opts?.live === false) return false;
   return true;
-}
-
-function overlayLast(
-  bars: OhlcBar[],
-  close: number,
-  changePct?: number,
-  session?: { open?: number; high?: number; low?: number; previousClose?: number },
-): OhlcBar[] {
-  if (!bars.length) return bars;
-  const copy = bars.map((b) => ({ ...b }));
-  const lastBar = copy[copy.length - 1];
-  if (typeof session?.previousClose === "number" && session.previousClose > 0 && copy.length >= 2) {
-    copy[copy.length - 2].close = Number(session.previousClose.toFixed(2));
-  } else if (typeof changePct === "number" && Number.isFinite(changePct) && copy.length >= 2) {
-    const prevClose = close / (1 + changePct / 100);
-    copy[copy.length - 2].close = Number(prevClose.toFixed(2));
-  }
-  lastBar.close = close;
-  if (typeof session?.open === "number" && session.open > 0) lastBar.open = session.open;
-  if (typeof session?.high === "number" && session.high > 0) lastBar.high = session.high;
-  else lastBar.high = Math.max(lastBar.high, close, lastBar.open);
-  if (typeof session?.low === "number" && session.low > 0) lastBar.low = session.low;
-  else lastBar.low = Math.min(lastBar.low, close, lastBar.open);
-  return copy;
 }
 
 function scoreMember(input: {
@@ -273,6 +251,8 @@ function tileFromBars(id: string, name: string, symbol: string, bars: OhlcBar[],
     high: lastBar.high,
     low: lastBar.low,
     prevClose: prev.close,
+    asOf: lastBar.date,
+    spark: closes.slice(-20),
     emas: emaStatuses(closes, settings),
   };
 }
@@ -462,37 +442,61 @@ export async function buildSnapshot(
 
   const members = stocksFor(universe);
   const indexBars = demoIndexBars();
+  const demoNifty = indexBars.nifty;
+  const demoDays = demoNifty.map((b) => b.date);
+  const marketDate = indiaMarketDate();
+  const histFrom = demoDays[Math.max(0, demoDays.length - 260)];
+
+  const emptyQuotes = {
+    bySymbol: {} as Record<string, { last: number; changePct?: number; open?: number; high?: number; low?: number; prevClose?: number }>,
+    source: "demo" as DataSource,
+  };
+
+  const [liveIdx, equityLtps, derivLive, flowLive, niftyHist] = live
+    ? await Promise.all([
+        tryLiveIndices(),
+        fetchEquityLtps(members, universe === "nifty500" ? "NIFTY 500" : "NIFTY 50"),
+        tryLiveDerivatives(last(demoNifty).close),
+        tryLiveFlows(),
+        dhanConfigured()
+          ? dhanHistorical({
+              securityId: "13",
+              exchangeSegment: "IDX_I",
+              instrument: "INDEX",
+              fromDate: histFrom,
+              toDate: marketDate,
+            }).catch(() => [] as OhlcBar[])
+          : Promise.resolve([] as OhlcBar[]),
+      ])
+    : [
+        {} as Record<string, LivePx>,
+        emptyQuotes,
+        { source: "demo" as DataSource },
+        { flows: null as null, source: "demo" as DataSource },
+        [] as OhlcBar[],
+      ];
+  const quotes = equityLtps.bySymbol;
+
+  if (niftyHist.length > 40) indexBars.nifty = niftyHist;
+
+  for (const meta of INDEX_META) {
+    const px = liveIdx[meta.nse] ?? liveIdx[meta.symbol];
+    if (px) {
+      indexBars[meta.id] = overlayLast(indexBars[meta.id], px.last, px.percentChange, {
+        date: marketDate,
+        open: px.open,
+        high: px.high,
+        low: px.low,
+        previousClose: px.previousClose,
+      });
+    }
+  }
+
   const niftyBars = indexBars.nifty;
   const days = niftyBars.map((b) => b.date);
   const asOf = last(days);
   const niftyClose = last(niftyBars).close;
-
-  const [liveIdx, equityLtps, derivLive, flowLive] = live
-    ? await Promise.all([
-        tryLiveIndices(),
-        fetchEquityLtps(members, universe === "nifty500" ? "NIFTY 500" : "NIFTY 50"),
-        tryLiveDerivatives(niftyClose),
-        tryLiveFlows(),
-      ])
-    : [
-        {} as Record<string, LivePx>,
-        { bySymbol: {} as Record<string, { last: number; changePct?: number; open?: number; high?: number; low?: number; prevClose?: number }>, source: "demo" as DataSource },
-        { source: "demo" as DataSource },
-        { flows: null as null, source: "demo" as DataSource },
-      ];
-  const quotes = equityLtps.bySymbol;
-
-  for (const meta of INDEX_META) {
-    const live = liveIdx[meta.nse] ?? liveIdx[meta.symbol];
-    if (live) {
-      indexBars[meta.id] = overlayLast(indexBars[meta.id], live.last, live.percentChange, {
-        open: live.open,
-        high: live.high,
-        low: live.low,
-        previousClose: live.previousClose,
-      });
-    }
-  }
+  const liveNiftyClose = liveIdx["NIFTY 50"]?.last ?? niftyClose;
 
   const stockBars = new Map<string, OhlcBar[]>();
   for (const s of members) {
@@ -505,6 +509,7 @@ export async function buildSnapshot(
       stockBars.set(
         s.symbol,
         overlayLast(stockBars.get(s.symbol)!, px.last, px.changePct, {
+          date: marketDate,
           open: px.open,
           high: px.high,
           low: px.low,
@@ -514,37 +519,22 @@ export async function buildSnapshot(
     }
   }
 
-  if (live && dhanConfigured()) {
-    try {
-      const from = days[Math.max(0, days.length - 260)];
-      const hist = await dhanHistorical({
-        securityId: "13",
-        exchangeSegment: "IDX_I",
-        instrument: "INDEX",
-        fromDate: from,
-        toDate: asOf,
-      });
-      if (hist.length > 40) indexBars.nifty = hist;
-    } catch {
-      // keep demo path
-    }
-  }
-
   const indices: IndexTile[] = INDEX_META.map((m) =>
     tileFromBars(m.id, m.name, m.symbol, indexBars[m.id], settings),
   );
 
   const flows = flowLive.flows?.length ? flowLive.flows : demoFlows(days);
-  const demoStrikes = demoOptionStrikes(niftyClose);
+  const demoStrikes = demoOptionStrikes(liveNiftyClose);
   const ladder: OptionStrike[] = derivLive.radar?.ladder?.length
     ? derivLive.radar.ladder
-    : aroundAtm(demoStrikes, niftyClose);
+    : aroundAtm(demoStrikes, liveNiftyClose);
   const callOi = derivLive.radar?.callOi ?? demoStrikes.reduce((s, x) => s + x.callOi, 0);
   const putOi = derivLive.radar?.putOi ?? demoStrikes.reduce((s, x) => s + x.putOi, 0);
   const pain = derivLive.radar?.maxPain ?? maxPain(demoStrikes);
   let vixBars = generateIndexPath("vix", days, 15.8);
   if (liveIdx["INDIA VIX"]?.last) {
     vixBars = overlayLast(vixBars, liveIdx["INDIA VIX"].last, liveIdx["INDIA VIX"].percentChange, {
+      date: marketDate,
       open: liveIdx["INDIA VIX"].open,
       high: liveIdx["INDIA VIX"].high,
       low: liveIdx["INDIA VIX"].low,
@@ -556,7 +546,7 @@ export async function buildSnapshot(
   const ivRank = round(((vix - 11) / (28 - 11)) * 100, 0);
   const callWall = ladder.reduce((a, b) => (a.callOi >= b.callOi ? a : b), ladder[0])?.strike ?? 0;
   const putWall = ladder.reduce((a, b) => (a.putOi >= b.putOi ? a : b), ladder[0])?.strike ?? 0;
-  const atm = aroundAtm(ladder, derivLive.radar?.spot ?? niftyClose, 1)[0];
+  const atm = aroundAtm(ladder, derivLive.radar?.spot ?? liveNiftyClose, 1)[0];
   const ivSkew = atm ? round(atm.putIv - atm.callIv, 2) : 0;
 
   const derivatives: DerivativesRadar = {
@@ -573,8 +563,8 @@ export async function buildSnapshot(
     niftyPcr: derivLive.radar?.niftyPcr ?? round(putOi / callOi, 2),
     pcrHistory: demoPcrHistory(days),
     maxPain: pain,
-    spot: derivLive.radar?.spot ?? niftyClose,
-    maxPainDistancePct: derivLive.radar?.maxPainDistancePct ?? round(pct(pain, niftyClose), 2),
+    spot: derivLive.radar?.spot ?? liveNiftyClose,
+    maxPainDistancePct: derivLive.radar?.maxPainDistancePct ?? round(pct(pain, liveNiftyClose), 2),
     callOi,
     putOi,
     expiry: derivLive.radar?.expiry ?? nextThursday(asOf),
@@ -759,6 +749,7 @@ export async function buildSnapshot(
   const usdLive = liveIdx["USD-INR"] ?? liveIdx["USDINR"];
   const usdBars = usdLive?.last
     ? overlayLast(generateIndexPath("usdinr", days, 83.2), usdLive.last, usdLive.percentChange, {
+        date: marketDate,
         open: usdLive.open,
         high: usdLive.high,
         low: usdLive.low,
@@ -901,10 +892,8 @@ export async function buildStockDetail(
   const s = stocksFor(universe).find((row) => row.symbol === upper) ?? UNIVERSE.find((row) => row.symbol === upper);
   if (!s) return null;
   const indexBars = demoIndexBars();
+  const marketDate = indiaMarketDate();
   const niftyBars = indexBars.nifty;
-  const niftyCloses = niftyBars.map((b) => b.close);
-  const niftyClose = last(niftyBars).close;
-  const asOf = last(niftyBars).date;
   let bars = generateStockBars(s, niftyBars);
   const { bySymbol } = await fetchEquityLtps(
     [s],
@@ -913,12 +902,16 @@ export async function buildStockDetail(
   const px = bySymbol[s.symbol];
   if (px) {
     bars = overlayLast(bars, px.last, px.changePct, {
+      date: marketDate,
       open: px.open,
       high: px.high,
       low: px.low,
       previousClose: px.prevClose,
     });
   }
+  const niftyCloses = niftyBars.map((b) => b.close);
+  const niftyClose = last(niftyBars).close;
+  const asOf = last(bars).date;
   const sectorBars = generateSectorBars(s.sector, niftyBars);
   const sectorCloses = sectorBars.map((b) => b.close);
   const rs3m = pct(valueAt(sectorCloses, 63), last(sectorBars).close) - pct(valueAt(niftyCloses, 63), niftyClose);
