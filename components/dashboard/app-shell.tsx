@@ -79,30 +79,37 @@ export function MarketDesk() {
     setError(null);
     try {
       const useBaked = !creds.accessToken && isDefaultSettings(s);
-      let res = useBaked
-        ? await fetch(`/data/${u}.json`, { cache: "force-cache", signal: AbortSignal.timeout(20_000) })
-        : await fetch(`/api/market?universe=${u}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              universe: u,
-              settings: s,
-              dhan: creds.accessToken ? creds : undefined,
-            }),
-            signal: AbortSignal.timeout(u === "nifty500" ? 90_000 : 40_000),
-          });
-      if (useBaked && !res.ok) {
-        res = await fetch(`/api/market?universe=${u}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ universe: u, settings: s }),
-          signal: AbortSignal.timeout(u === "nifty500" ? 90_000 : 40_000),
+      let painted = false;
+      if (useBaked) {
+        const baked = await fetch(`/data/${u}.json`, {
+          cache: "force-cache",
+          signal: AbortSignal.timeout(20_000),
         });
+        if (baked.ok) {
+          const json = (await baked.json()) as DashboardSnapshot;
+          setData(json);
+          setUniverse(json.universe ?? u);
+          setLoading(false);
+          painted = true;
+        }
       }
+      const res = await fetch(`/api/market?universe=${u}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          universe: u,
+          settings: s,
+          dhan: creds.accessToken ? creds : undefined,
+        }),
+        signal: AbortSignal.timeout(u === "nifty500" ? 90_000 : 40_000),
+      });
       const json = (await res.json()) as DashboardSnapshot & { error?: string };
-      if (!res.ok) throw new Error(json.error || `Market API ${res.status}`);
-      setData(json);
-      setUniverse(json.universe ?? u);
+      if (!res.ok) {
+        if (!painted) throw new Error(json.error || `Market API ${res.status}`);
+      } else {
+        setData(json);
+        setUniverse(json.universe ?? u);
+      }
       try {
         localStorage.setItem("imd-universe", json.universe ?? u);
       } catch {

@@ -20,7 +20,9 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const universe = (searchParams.get("universe") === "nifty500" ? "nifty500" : "nifty50") as UniverseId;
     const snap = await runWithDhan(credsFrom(req), () => buildSnapshot(universe));
-    return NextResponse.json(withoutCharts(snap));
+    return NextResponse.json(withoutCharts(snap), {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : "snapshot failed";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -38,7 +40,9 @@ export async function POST(req: Request) {
     const snap = await runWithDhan(credsFrom(req, body.dhan), () =>
       buildSnapshot(universe, body.settings),
     );
-    return NextResponse.json(withoutCharts(snap));
+    return NextResponse.json(withoutCharts(snap), {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : "snapshot failed";
     return NextResponse.json({ error: message }, { status: 500 });

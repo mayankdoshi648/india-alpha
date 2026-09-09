@@ -2,7 +2,7 @@
 
 A single-screen Nifty 50 / Nifty 500 desk: index tape, mosaic, sector rotation, universe, alerts, swing setups (VCP / breakout), F&O and breadth on one page.
 
-Quotes, historical candles and the Nifty option chain come from **DhanHQ** when you add credentials. **NSE India** is used for FII/DII cash flow and index last prices when the public feed is reachable. If neither is available, the desk still runs on a deterministic tape anchored to the 8 Sep 2026 close (Nifty 23,635) so every panel stays usable.
+Quotes, historical candles and the Nifty option chain come from **DhanHQ** when you add credentials. **NSE India** is used for index last prices and FII/DII when the public feed is reachable. Equity last prices fall back to **Yahoo Finance** (`.NS`) because NSE’s stock board is blocked from most cloud IPs — that is why a public deploy used to show the demo tape instead of the real share. If neither is available, the desk still runs on a deterministic tape anchored to the 8 Sep 2026 close (Nifty 23,635) so every panel stays usable.
 
 ## Run locally
 

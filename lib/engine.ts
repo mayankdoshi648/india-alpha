@@ -40,10 +40,10 @@ import {
   dhanFingerprint,
   dhanHistorical,
   dhanIndexLtp,
-  dhanLtp,
   dhanOptionChain,
 } from "@/lib/dhan";
 import { nseAllIndices, nseFiiDii, nseOptionChain } from "@/lib/nse";
+import { fetchEquityLtps, yahooIndexQuotes } from "@/lib/quotes";
 import { mergeSettings } from "@/lib/settings";
 import {
   DHAN_INDEX_IDS,
@@ -73,7 +73,7 @@ import type {
   UniverseStock,
 } from "@/lib/types";
 
-const CACHE_VER = 14;
+const CACHE_VER = 15;
 const cache = new Map<string, { at: number; value: DashboardSnapshot }>();
 
 export type SnapshotOpts = {
@@ -83,8 +83,7 @@ export type SnapshotOpts = {
 
 function liveFeedsEnabled(opts?: SnapshotOpts): boolean {
   if (opts?.live === false) return false;
-  if (dhanConfigured()) return true;
-  return !process.env.VERCEL;
+  return true;
 }
 
 function overlayLast(bars: OhlcBar[], close: number, changePct?: number): OhlcBar[] {
@@ -386,18 +385,19 @@ async function tryLiveIndices(): Promise<Record<string, { last: number; percentC
       out[idx.index] = { last: idx.last, percentChange: idx.percentChange };
     }
   } catch {
-    // ignore
+    // yahoo fill
+  }
+  if (!out["NIFTY 50"] || !out["INDIA VIX"] || !out["NIFTY 500"]) {
+    try {
+      const y = await yahooIndexQuotes();
+      for (const [name, ltp] of Object.entries(y)) {
+        if (!out[name]) out[name] = { last: ltp.last, percentChange: ltp.changePct };
+      }
+    } catch {
+      // ignore
+    }
   }
   return out;
-}
-
-async function tryLiveQuotes(ids: number[]): Promise<Record<string, number>> {
-  if (!dhanConfigured() || ids.length === 0) return {};
-  try {
-    return await dhanLtp(ids);
-  } catch {
-    return {};
-  }
 }
 
 export async function buildSnapshot(
@@ -418,19 +418,20 @@ export async function buildSnapshot(
   const asOf = last(days);
   const niftyClose = last(niftyBars).close;
 
-  const [liveIdx, quotes, derivLive, flowLive] = live
+  const [liveIdx, equityLtps, derivLive, flowLive] = live
     ? await Promise.all([
         tryLiveIndices(),
-        tryLiveQuotes(members.map((s) => s.securityId).filter(Boolean)),
+        fetchEquityLtps(members),
         tryLiveDerivatives(niftyClose),
         tryLiveFlows(),
       ])
     : [
         {} as Record<string, { last: number; percentChange?: number }>,
-        {} as Record<string, number>,
+        { bySymbol: {} as Record<string, { last: number; changePct?: number }>, source: "demo" as DataSource },
         { source: "demo" as DataSource },
         { flows: null as null, source: "demo" as DataSource },
       ];
+  const quotes = equityLtps.bySymbol;
 
   for (const meta of INDEX_META) {
     const live = liveIdx[meta.nse] ?? liveIdx[meta.symbol];
@@ -443,8 +444,8 @@ export async function buildSnapshot(
   }
 
   for (const s of members) {
-    const px = quotes[String(s.securityId)];
-    if (px) stockBars.set(s.symbol, overlayLast(stockBars.get(s.symbol)!, px));
+    const px = quotes[s.symbol];
+    if (px) stockBars.set(s.symbol, overlayLast(stockBars.get(s.symbol)!, px.last, px.changePct));
   }
 
   if (live && dhanConfigured()) {
@@ -758,7 +759,7 @@ export async function buildSnapshot(
     generatedAt: new Date().toISOString(),
     universe,
     sources: {
-      quotes: Object.keys(quotes).length ? "dhan" : liveIdx["NIFTY 50"] ? "nse" : "demo",
+      quotes: equityLtps.source !== "demo" ? equityLtps.source : liveIdx["NIFTY 50"] ? "nse" : "demo",
       derivatives: derivLive.source,
       flows: flowLive.source,
     },
@@ -820,11 +821,9 @@ export async function buildStockDetail(
   const niftyClose = last(niftyBars).close;
   const asOf = last(niftyBars).date;
   let bars = generateStockBars(s, niftyBars);
-  if (dhanConfigured() && s.securityId) {
-    const quotes = await tryLiveQuotes([s.securityId]);
-    const px = quotes[String(s.securityId)];
-    if (px) bars = overlayLast(bars, px);
-  }
+  const { bySymbol } = await fetchEquityLtps([s]);
+  const px = bySymbol[s.symbol];
+  if (px) bars = overlayLast(bars, px.last, px.changePct);
   const sectorBars = generateSectorBars(s.sector, niftyBars);
   const sectorCloses = sectorBars.map((b) => b.close);
   const rs3m = pct(valueAt(sectorCloses, 63), last(sectorBars).close) - pct(valueAt(niftyCloses, 63), niftyClose);
