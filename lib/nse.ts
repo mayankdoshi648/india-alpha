@@ -16,7 +16,7 @@ async function refreshCookie() {
   const home = await fetch(NSE_HOME, {
     headers: BROWSER_HEADERS,
     cache: "no-store",
-    signal: AbortSignal.timeout(2500),
+    signal: AbortSignal.timeout(8000),
   });
   cookieJar = home.headers.getSetCookie?.().join("; ") ?? home.headers.get("set-cookie") ?? "";
 }
@@ -26,7 +26,7 @@ async function nseGet<T>(path: string): Promise<T> {
     const res = await fetch(`${NSE_HOME}${path}`, {
       headers: { ...BROWSER_HEADERS, Cookie: cookieJar },
       cache: "no-store",
-      signal: AbortSignal.timeout(3500),
+      signal: AbortSignal.timeout(12_000),
     });
     if (!res.ok) throw new Error(`NSE ${path} ${res.status}`);
     return (await res.json()) as T;

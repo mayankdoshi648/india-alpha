@@ -110,7 +110,7 @@ export function MarketDesk() {
     setLoading(true);
     setError(null);
     try {
-      const useBaked = !creds.accessToken && isDefaultSettings(s);
+      const useBaked = isDefaultSettings(s);
       let painted = false;
       if (useBaked) {
         const baked = await fetch(`/data/${u}.json`, {

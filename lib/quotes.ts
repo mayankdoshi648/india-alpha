@@ -1,7 +1,13 @@
-import { dhanConfigured, dhanLtp, dhanSecurityMap } from "@/lib/dhan";
+import { dhanConfigured, dhanSecurityMap, dhanSegmentOhlc, type DhanPx } from "@/lib/dhan";
 import type { DataSource, UniverseStock } from "@/lib/types";
 
-export type Ltp = { last: number; changePct?: number };
+export type Ltp = {
+  last: number;
+  changePct?: number;
+  open?: number;
+  high?: number;
+  low?: number;
+};
 
 /** NSE tickers that no longer match Yahoo's `.NS` symbol. */
 const YAHOO_ALIAS: Record<string, string> = {
@@ -51,7 +57,13 @@ async function spark(symbols: string[]): Promise<Record<string, Ltp>> {
       result?: {
         symbol: string;
         response?: {
-          meta?: { regularMarketPrice?: number; regularMarketChangePercent?: number };
+          meta?: {
+            regularMarketPrice?: number;
+            regularMarketChangePercent?: number;
+            regularMarketDayHigh?: number;
+            regularMarketDayLow?: number;
+            regularMarketOpen?: number;
+          };
         }[];
       }[];
     };
@@ -60,10 +72,13 @@ async function spark(symbols: string[]): Promise<Record<string, Ltp>> {
   for (const item of json.spark?.result ?? []) {
     const meta = item.response?.[0]?.meta;
     const last = meta?.regularMarketPrice;
-    if (typeof last !== "number" || !Number.isFinite(last)) continue;
+    if (!meta || typeof last !== "number" || !Number.isFinite(last)) continue;
     out[item.symbol] = {
       last,
-      changePct: typeof meta?.regularMarketChangePercent === "number" ? meta.regularMarketChangePercent : undefined,
+      changePct: typeof meta.regularMarketChangePercent === "number" ? meta.regularMarketChangePercent : undefined,
+      high: typeof meta.regularMarketDayHigh === "number" ? meta.regularMarketDayHigh : undefined,
+      low: typeof meta.regularMarketDayLow === "number" ? meta.regularMarketDayLow : undefined,
+      open: typeof meta.regularMarketOpen === "number" ? meta.regularMarketOpen : undefined,
     };
   }
   return out;
@@ -115,6 +130,16 @@ export async function yahooIndexQuotes(): Promise<Record<string, Ltp>> {
   return out;
 }
 
+function pxFromDhan(px: DhanPx): Ltp {
+  return {
+    last: px.last,
+    changePct: px.changePct,
+    open: px.open,
+    high: px.high,
+    low: px.low,
+  };
+}
+
 export async function fetchEquityLtps(members: UniverseStock[]): Promise<{
   bySymbol: Record<string, Ltp>;
   source: DataSource;
@@ -124,24 +149,30 @@ export async function fetchEquityLtps(members: UniverseStock[]): Promise<{
 
   if (dhanConfigured()) {
     try {
-      const idBySymbol = new Map<string, number>();
-      try {
-        const scrips = await dhanSecurityMap();
-        for (const s of members) {
-          const id = s.securityId || scrips.get(s.symbol) || scrips.get(YAHOO_ALIAS[s.symbol] ?? "") || 0;
-          if (id > 0) idBySymbol.set(s.symbol, id);
-        }
-      } catch {
-        for (const s of members) {
-          if (s.securityId > 0) idBySymbol.set(s.symbol, s.securityId);
+      const known = new Map<string, number>();
+      for (const s of members) {
+        if (s.securityId > 0) known.set(s.symbol, s.securityId);
+      }
+      const unresolved = members.filter((s) => !known.has(s.symbol));
+      const mapP = unresolved.length ? dhanSecurityMap().catch(() => null) : Promise.resolve(null);
+      const knownIds = [...new Set(known.values())];
+      const firstP = knownIds.length ? dhanSegmentOhlc("NSE_EQ", knownIds) : Promise.resolve({} as Record<string, DhanPx>);
+      const [scrips, first] = await Promise.all([mapP, firstP]);
+      if (scrips) {
+        for (const s of unresolved) {
+          const id = scrips.get(s.symbol) || scrips.get(YAHOO_ALIAS[s.symbol] ?? "") || 0;
+          if (id > 0) known.set(s.symbol, id);
         }
       }
-      const ids = [...new Set(idBySymbol.values())];
-      const ltp = ids.length ? await dhanLtp(ids) : {};
+      const extraIds = [...new Set(
+        unresolved.map((s) => known.get(s.symbol) ?? 0).filter((id) => id > 0 && !knownIds.includes(id)),
+      )];
+      const second = extraIds.length ? await dhanSegmentOhlc("NSE_EQ", extraIds) : {};
+      const quotes = { ...first, ...second };
       for (const s of members) {
-        const id = idBySymbol.get(s.symbol);
-        const px = id ? ltp[String(id)] : undefined;
-        if (typeof px === "number") bySymbol[s.symbol] = { last: px };
+        const id = known.get(s.symbol);
+        const px = id ? quotes[String(id)] : undefined;
+        if (px) bySymbol[s.symbol] = pxFromDhan(px);
       }
       if (Object.keys(bySymbol).length) source = "dhan";
     } catch {
