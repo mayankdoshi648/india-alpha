@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "India Market Desk",
   description:
-    "Nifty 50 / Nifty 500 market view. Live quotes and option chains from DhanHQ.",
+    "Nifty 50 / Nifty 500 market view with institutional flows, option PCR, EMA breadth, sector rotation and setup scanner. DhanHQ + NSE India.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -2,7 +2,7 @@
 
 A single-screen Nifty 50 / Nifty 500 desk: index tape, mosaic, sector rotation, universe, alerts, swing setups (VCP / breakout), F&O and breadth on one page.
 
-Quotes, historical candles and the Nifty option chain come only from **DhanHQ**. Connect a Data API access token on the desk. With no token, the desk stays on a local tape anchored to the 8 Sep 2026 close (Nifty 23,635) — it does not call NSE, Yahoo, or any other feed.
+Quotes, historical candles and the Nifty option chain come from **DhanHQ** when you add credentials. **NSE India** is used for index last prices and FII/DII when the public feed is reachable. Equity last prices fall back to **Yahoo Finance** (`.NS`) because NSE’s stock board is blocked from most cloud IPs — that is why a public deploy used to show the demo tape instead of the real share. If neither is available, the desk still runs on a deterministic tape anchored to the 8 Sep 2026 close (Nifty 23,635) so every panel stays usable.
 
 ## Run locally
 
@@ -39,9 +39,8 @@ Used endpoints:
 - `POST /v2/charts/historical` — daily OHLC
 - `POST /v2/optionchain/expirylist` and `/v2/optionchain` — index and stock PCR, max pain, ATM IV
 - Scrip master CSV for security IDs
-- `GET /v2/RenewToken` — extend a still-valid web JWT
 
-There is no NSE or Yahoo fallback.
+NSE (no key): `allIndices`, `fiidiiTradeData`, `option-chain-indices`, `option-chain-equities`.
 
 ## What is on the desk
 

@@ -42,7 +42,7 @@ export function SessionBar({
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-slate-400">
       <span className={cn("font-medium uppercase tracking-wide", phaseTone)}>
-        Market {now.phase}
+        NSE {now.phase}
       </span>
       <span className="font-mono tabular-nums">{now.clock}</span>
       <span>tape {data.asOf}</span>

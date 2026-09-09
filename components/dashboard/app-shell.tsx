@@ -79,6 +79,7 @@ export function MarketDesk() {
     setError(null);
     try {
       const useBaked = !creds.accessToken && isDefaultSettings(s);
+      let painted = false;
       if (useBaked) {
         const baked = await fetch(`/data/${u}.json`, {
           cache: "force-cache",
@@ -88,12 +89,8 @@ export function MarketDesk() {
           const json = (await baked.json()) as DashboardSnapshot;
           setData(json);
           setUniverse(json.universe ?? u);
-          try {
-            localStorage.setItem("imd-universe", json.universe ?? u);
-          } catch {
-            // ignore
-          }
-          return;
+          setLoading(false);
+          painted = true;
         }
       }
       const res = await fetch(`/api/market?universe=${u}`, {
@@ -107,9 +104,12 @@ export function MarketDesk() {
         signal: AbortSignal.timeout(u === "nifty500" ? 90_000 : 40_000),
       });
       const json = (await res.json()) as DashboardSnapshot & { error?: string };
-      if (!res.ok) throw new Error(json.error || `Market API ${res.status}`);
-      setData(json);
-      setUniverse(json.universe ?? u);
+      if (!res.ok) {
+        if (!painted) throw new Error(json.error || `Market API ${res.status}`);
+      } else {
+        setData(json);
+        setUniverse(json.universe ?? u);
+      }
       try {
         localStorage.setItem("imd-universe", json.universe ?? u);
       } catch {
@@ -317,7 +317,7 @@ export function MarketDesk() {
   function disconnectDhan() {
     setDhan(EMPTY_DHAN);
     localStorage.removeItem("imd-dhan");
-    setDhanStatus("Disconnected. Using the local tape.");
+    setDhanStatus("Disconnected. Using NSE or the local tape.");
     setDhanError(null);
     void loadTape(universe, settings, EMPTY_DHAN);
   }

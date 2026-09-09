@@ -1,7 +1,7 @@
 export type CapBucket = "large" | "mid" | "small";
 export type UniverseId = "nifty50" | "nifty500";
 export type Timeframe = "D" | "W" | "M";
-export type DataSource = "dhan" | "demo";
+export type DataSource = "dhan" | "nse" | "yahoo" | "demo";
 export type RotationQuadrant = "leading" | "weakening" | "lagging" | "improving";
 export type PatternKind =
   | "stage2"
