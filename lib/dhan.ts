@@ -125,16 +125,99 @@ async function readDhanError(res: Response, path: string): Promise<never> {
   throw new Error(explainDhanAuthError(`Dhan ${path} ${res.status}: ${text}`));
 }
 
-async function post<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify(body),
-    cache: "no-store",
-    signal: AbortSignal.timeout(8000),
+/** Data APIs allow 1 marketfeed request per second. Parallel snapshot calls otherwise 429/empty. */
+const DHAN_GAP_MS = 1100;
+let dhanGate: Promise<void> = Promise.resolve();
+let lastDhanPostAt = 0;
+
+async function throttleDhan<T>(fn: () => Promise<T>): Promise<T> {
+  let release: () => void = () => {};
+  const mine = new Promise<void>((resolve) => {
+    release = resolve;
   });
-  if (!res.ok) await readDhanError(res, path);
-  return (await res.json()) as T;
+  const prev = dhanGate;
+  dhanGate = mine;
+  await prev.catch(() => undefined);
+  try {
+    const wait = DHAN_GAP_MS - (Date.now() - lastDhanPostAt);
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    lastDhanPostAt = Date.now();
+    return await fn();
+  } finally {
+    release();
+  }
+}
+
+async function post<T>(path: string, body: unknown): Promise<T> {
+  return throttleDhan(async () => {
+    const res = await fetch(`${BASE}${path}`, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify(body),
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) await readDhanError(res, path);
+    return (await res.json()) as T;
+  });
+}
+
+export type DhanPx = {
+  last: number;
+  prevClose?: number;
+  changePct?: number;
+  open?: number;
+  high?: number;
+  low?: number;
+};
+
+function num(v: unknown): number | undefined {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim()) {
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return undefined;
+}
+
+function parseDhanPx(row: unknown): DhanPx | null {
+  if (!row || typeof row !== "object") return null;
+  const r = row as Record<string, unknown>;
+  const ohlc = r.ohlc && typeof r.ohlc === "object" ? (r.ohlc as Record<string, unknown>) : {};
+  const last = num(r.last_price) ?? num(r.LTP) ?? num(r.lastPrice);
+  if (last == null) return null;
+  const prevClose = num(ohlc.close) ?? num(r.previous_close) ?? num(r.prev_close);
+  const open = num(ohlc.open) ?? num(r.open);
+  const high = num(ohlc.high) ?? num(r.high);
+  const low = num(ohlc.low) ?? num(r.low);
+  const net = num(r.net_change);
+  let changePct: number | undefined;
+  if (prevClose && prevClose !== 0) changePct = ((last - prevClose) / prevClose) * 100;
+  else if (net != null && last - net !== 0) changePct = (net / (last - net)) * 100;
+  return { last, prevClose, changePct, open, high, low };
+}
+
+export async function dhanSegmentOhlc(
+  segment: string,
+  ids: number[],
+): Promise<Record<string, DhanPx>> {
+  const unique = [...new Set(ids.filter((id) => id > 0))];
+  const out: Record<string, DhanPx> = {};
+  for (let i = 0; i < unique.length; i += 200) {
+    const chunk = unique.slice(i, i + 200);
+    let json: { data?: Record<string, Record<string, unknown>> };
+    try {
+      json = await post("/marketfeed/ohlc", { [segment]: chunk });
+    } catch {
+      json = await post("/marketfeed/ltp", { [segment]: chunk });
+    }
+    const bucket = json.data?.[segment] ?? {};
+    for (const [id, row] of Object.entries(bucket)) {
+      const px = parseDhanPx(row);
+      if (px) out[id] = px;
+    }
+  }
+  return out;
 }
 
 export interface DhanProfile {
@@ -224,36 +307,21 @@ export async function dhanRenewToken(
 }
 
 export async function dhanLtp(ids: number[]): Promise<Record<string, number>> {
-  const unique = [...new Set(ids.filter((id) => id > 0))];
+  const quotes = await dhanSegmentOhlc("NSE_EQ", ids);
   const out: Record<string, number> = {};
-  for (let i = 0; i < unique.length; i += 200) {
-    const chunk = unique.slice(i, i + 200);
-    const json = await post<{ data?: Record<string, Record<string, { last_price?: number }>> }>(
-      "/marketfeed/ltp",
-      { NSE_EQ: chunk },
-    );
-    const bucket = json.data?.NSE_EQ ?? json.data ?? {};
-    for (const [id, row] of Object.entries(bucket)) {
-      const px = (row as { last_price?: number; LTP?: number }).last_price
-        ?? (row as { LTP?: number }).LTP;
-      if (typeof px === "number") out[id] = px;
-    }
-  }
+  for (const [id, px] of Object.entries(quotes)) out[id] = px.last;
   return out;
 }
 
 export async function dhanIndexLtp(ids: number[]): Promise<Record<string, number>> {
-  const json = await post<{ data?: Record<string, Record<string, { last_price?: number }>> }>(
-    "/marketfeed/ltp",
-    { IDX_I: ids },
-  );
-  const bucket = json.data?.IDX_I ?? {};
+  const quotes = await dhanIndexOhlc(ids);
   const out: Record<string, number> = {};
-  for (const [id, row] of Object.entries(bucket)) {
-    const px = (row as { last_price?: number }).last_price;
-    if (typeof px === "number") out[id] = px;
-  }
+  for (const [id, px] of Object.entries(quotes)) out[id] = px.last;
   return out;
+}
+
+export async function dhanIndexOhlc(ids: number[]): Promise<Record<string, DhanPx>> {
+  return dhanSegmentOhlc("IDX_I", ids);
 }
 
 interface HistPayload {
@@ -354,7 +422,7 @@ let scripCache: { at: number; map: Map<string, number> } | null = null;
 export async function dhanSecurityMap(): Promise<Map<string, number>> {
   if (scripCache && Date.now() - scripCache.at < 6 * 60 * 60_000) return scripCache.map;
   const url = "https://images.dhan.co/api-data/api-scrip-master.csv";
-  const res = await fetch(url, { cache: "force-cache", signal: AbortSignal.timeout(45_000) });
+  const res = await fetch(url, { cache: "force-cache", signal: AbortSignal.timeout(15_000) });
   if (!res.ok) throw new Error("Dhan scrip master unavailable");
   const text = await res.text();
   const lines = text.split(/\r?\n/);

@@ -40,7 +40,7 @@ import {
   dhanExpiryList,
   dhanFingerprint,
   dhanHistorical,
-  dhanIndexLtp,
+  dhanIndexOhlc,
   dhanOptionChain,
 } from "@/lib/dhan";
 import { nseAllIndices, nseFiiDii, nseOptionChain } from "@/lib/nse";
@@ -75,7 +75,7 @@ import type {
   UniverseStock,
 } from "@/lib/types";
 
-const CACHE_VER = 16;
+const CACHE_VER = 17;
 const cache = new Map<string, { at: number; value: DashboardSnapshot }>();
 
 export type SnapshotOpts = {
@@ -88,25 +88,25 @@ function liveFeedsEnabled(opts?: SnapshotOpts): boolean {
   return true;
 }
 
-function overlayLast(bars: OhlcBar[], close: number, changePct?: number): OhlcBar[] {
+function overlayLast(
+  bars: OhlcBar[],
+  close: number,
+  changePct?: number,
+  session?: { open?: number; high?: number; low?: number },
+): OhlcBar[] {
   if (!bars.length) return bars;
   const copy = bars.map((b) => ({ ...b }));
   const lastBar = copy[copy.length - 1];
   if (typeof changePct === "number" && Number.isFinite(changePct) && copy.length >= 2) {
     const prevClose = close / (1 + changePct / 100);
     copy[copy.length - 2].close = Number(prevClose.toFixed(2));
-    lastBar.close = close;
-    lastBar.high = Math.max(lastBar.high, close);
-    lastBar.low = Math.min(lastBar.low, close);
-    return copy;
   }
-  const scale = lastBar.close ? close / lastBar.close : 1;
-  for (const b of copy) {
-    b.open = Number((b.open * scale).toFixed(2));
-    b.high = Number((b.high * scale).toFixed(2));
-    b.low = Number((b.low * scale).toFixed(2));
-    b.close = Number((b.close * scale).toFixed(2));
-  }
+  lastBar.close = close;
+  if (typeof session?.open === "number" && session.open > 0) lastBar.open = session.open;
+  if (typeof session?.high === "number" && session.high > 0) lastBar.high = session.high;
+  else lastBar.high = Math.max(lastBar.high, close, lastBar.open);
+  if (typeof session?.low === "number" && session.low > 0) lastBar.low = session.low;
+  else lastBar.low = Math.min(lastBar.low, close, lastBar.open);
   return copy;
 }
 
@@ -376,14 +376,29 @@ async function tryLiveFlows() {
   return { flows: null as null, source: "demo" as DataSource };
 }
 
-async function tryLiveIndices(): Promise<Record<string, { last: number; percentChange?: number }>> {
-  const out: Record<string, { last: number; percentChange?: number }> = {};
+async function tryLiveIndices(): Promise<Record<string, {
+  last: number;
+  percentChange?: number;
+  open?: number;
+  high?: number;
+  low?: number;
+}>> {
+  const out: Record<string, { last: number; percentChange?: number; open?: number; high?: number; low?: number }> = {};
   if (dhanConfigured()) {
     try {
-      const ids = Object.values(DHAN_INDEX_IDS).map((x) => x.id);
-      const ltp = await dhanIndexLtp(ids);
+      const ids = [...new Set(Object.values(DHAN_INDEX_IDS).map((x) => x.id).filter((id) => id > 0))];
+      const quotes = await dhanIndexOhlc(ids);
       for (const [name, meta] of Object.entries(DHAN_INDEX_IDS)) {
-        if (ltp[String(meta.id)]) out[name] = { last: ltp[String(meta.id)] };
+        const px = quotes[String(meta.id)];
+        if (px) {
+          out[name] = {
+            last: px.last,
+            percentChange: px.changePct,
+            open: px.open,
+            high: px.high,
+            low: px.low,
+          };
+        }
       }
     } catch {
       // nse
@@ -392,7 +407,13 @@ async function tryLiveIndices(): Promise<Record<string, { last: number; percentC
   try {
     const indices = await nseAllIndices();
     for (const idx of indices) {
-      out[idx.index] = { last: idx.last, percentChange: idx.percentChange };
+      out[idx.index] = {
+        last: idx.last,
+        percentChange: idx.percentChange,
+        open: idx.open,
+        high: idx.high,
+        low: idx.low,
+      };
     }
   } catch {
     // yahoo fill
@@ -401,7 +422,15 @@ async function tryLiveIndices(): Promise<Record<string, { last: number; percentC
     try {
       const y = await yahooIndexQuotes();
       for (const [name, ltp] of Object.entries(y)) {
-        if (!out[name]) out[name] = { last: ltp.last, percentChange: ltp.changePct };
+        if (!out[name]) {
+          out[name] = {
+            last: ltp.last,
+            percentChange: ltp.changePct,
+            open: ltp.open,
+            high: ltp.high,
+            low: ltp.low,
+          };
+        }
       }
     } catch {
       // ignore
@@ -436,8 +465,8 @@ export async function buildSnapshot(
         tryLiveFlows(),
       ])
     : [
-        {} as Record<string, { last: number; percentChange?: number }>,
-        { bySymbol: {} as Record<string, { last: number; changePct?: number }>, source: "demo" as DataSource },
+        {} as Record<string, { last: number; percentChange?: number; open?: number; high?: number; low?: number }>,
+        { bySymbol: {} as Record<string, { last: number; changePct?: number; open?: number; high?: number; low?: number }>, source: "demo" as DataSource },
         { source: "demo" as DataSource },
         { flows: null as null, source: "demo" as DataSource },
       ];
@@ -445,7 +474,13 @@ export async function buildSnapshot(
 
   for (const meta of INDEX_META) {
     const live = liveIdx[meta.nse] ?? liveIdx[meta.symbol];
-    if (live) indexBars[meta.id] = overlayLast(indexBars[meta.id], live.last, live.percentChange);
+    if (live) {
+      indexBars[meta.id] = overlayLast(indexBars[meta.id], live.last, live.percentChange, {
+        open: live.open,
+        high: live.high,
+        low: live.low,
+      });
+    }
   }
 
   const stockBars = new Map<string, OhlcBar[]>();
@@ -455,7 +490,16 @@ export async function buildSnapshot(
 
   for (const s of members) {
     const px = quotes[s.symbol];
-    if (px) stockBars.set(s.symbol, overlayLast(stockBars.get(s.symbol)!, px.last, px.changePct));
+    if (px) {
+      stockBars.set(
+        s.symbol,
+        overlayLast(stockBars.get(s.symbol)!, px.last, px.changePct, {
+          open: px.open,
+          high: px.high,
+          low: px.low,
+        }),
+      );
+    }
   }
 
   if (live && dhanConfigured()) {
@@ -488,7 +532,11 @@ export async function buildSnapshot(
   const pain = derivLive.radar?.maxPain ?? maxPain(demoStrikes);
   let vixBars = generateIndexPath("vix", days, 15.8);
   if (liveIdx["INDIA VIX"]?.last) {
-    vixBars = overlayLast(vixBars, liveIdx["INDIA VIX"].last, liveIdx["INDIA VIX"].percentChange);
+    vixBars = overlayLast(vixBars, liveIdx["INDIA VIX"].last, liveIdx["INDIA VIX"].percentChange, {
+      open: liveIdx["INDIA VIX"].open,
+      high: liveIdx["INDIA VIX"].high,
+      low: liveIdx["INDIA VIX"].low,
+    });
   }
   const vix = last(vixBars).close;
   const vixPrev = vixBars[vixBars.length - 2].close;
@@ -697,7 +745,11 @@ export async function buildSnapshot(
   const realized = realizedVol(niftyCloses, 20);
   const usdLive = liveIdx["USD-INR"] ?? liveIdx["USDINR"];
   const usdBars = usdLive?.last
-    ? overlayLast(generateIndexPath("usdinr", days, 83.2), usdLive.last, usdLive.percentChange)
+    ? overlayLast(generateIndexPath("usdinr", days, 83.2), usdLive.last, usdLive.percentChange, {
+        open: usdLive.open,
+        high: usdLive.high,
+        low: usdLive.low,
+      })
     : generateIndexPath("usdinr", days, 83.2);
   const crudeBars = generateIndexPath("crude", days, 72.4);
   const gsecBars = generateIndexPath("gsec10", days, 6.52);
@@ -842,7 +894,7 @@ export async function buildStockDetail(
   let bars = generateStockBars(s, niftyBars);
   const { bySymbol } = await fetchEquityLtps([s]);
   const px = bySymbol[s.symbol];
-  if (px) bars = overlayLast(bars, px.last, px.changePct);
+  if (px) bars = overlayLast(bars, px.last, px.changePct, { open: px.open, high: px.high, low: px.low });
   const sectorBars = generateSectorBars(s.sector, niftyBars);
   const sectorCloses = sectorBars.map((b) => b.close);
   const rs3m = pct(valueAt(sectorCloses, 63), last(sectorBars).close) - pct(valueAt(niftyCloses, 63), niftyClose);
