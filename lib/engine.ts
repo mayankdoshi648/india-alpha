@@ -77,7 +77,7 @@ import type {
 import { overlayLast } from "@/lib/ohlc";
 import { indiaMarketDate } from "@/lib/session";
 
-const CACHE_VER = 20;
+const CACHE_VER = 21;
 const cache = new Map<string, { at: number; value: DashboardSnapshot }>();
 
 export type SnapshotOpts = {
@@ -617,7 +617,7 @@ export async function buildSnapshot(
   const sectors: SectorTile[] = SECTORS.map((sector) => {
     const bars = generateSectorBars(sector, niftyBars);
     const cons = members.filter((s) => s.sector === sector);
-    const names = cons.length ? cons.map((c) => c.symbol) : UNIVERSE.filter((c) => c.sector === sector).map((c) => c.symbol);
+    const names = cons.map((c) => c.symbol);
     const lastBar = last(bars);
     const prev = bars[bars.length - 2];
     const closes = bars.map((b) => b.close);
@@ -630,22 +630,32 @@ export async function buildSnapshot(
       return last(b).close >= b[b.length - 2].close;
     }).length;
     const dec = cons.length - adv;
-    const turnover = cons.reduce((s, c) => {
-      const b = last(stockBars.get(c.symbol)!);
-      return s + b.close * b.volume;
-    }, 0);
+    let turnover = 0;
+    let weightedChg = 0;
+    let cmfSum = 0;
+    for (const c of cons) {
+      const memberBars = stockBars.get(c.symbol)!;
+      const memberLast = last(memberBars);
+      const memberPrev = memberBars[memberBars.length - 2];
+      const turn = memberLast.close * memberLast.volume;
+      turnover += turn;
+      weightedChg += pct(memberPrev.close, memberLast.close) * turn;
+      cmfSum += chaikinMoneyFlow(memberBars, settings.cmfPeriod);
+    }
+    const liveChg = turnover > 0 ? weightedChg / turnover : pct(prev.close, lastBar.close);
+    const liveCmf = cons.length ? cmfSum / cons.length : chaikinMoneyFlow(bars, settings.cmfPeriod);
     return {
       id: sector,
       name: sector,
       cmp: round(lastBar.close, 2),
-      changePct: round(pct(prev.close, lastBar.close), 2),
+      changePct: round(liveChg, 2),
       weekPct: round(pct(valueAt(closes, 5), lastBar.close), 2),
       monthPct: round(pct(valueAt(closes, 21), lastBar.close), 2),
       emas: emaStatuses(closes, settings),
       advances: adv,
       declines: Math.max(0, dec),
       turnoverShare: turnover,
-      cmf: round(chaikinMoneyFlow(bars, settings.cmfPeriod), 3),
+      cmf: round(liveCmf, 3),
       rs3m: round(rs3m, 2),
       rsMomentum: round(rs1mNow - rs1mPrev, 2),
       quadrant: quadrant(rs3m, rs1mNow - rs1mPrev),

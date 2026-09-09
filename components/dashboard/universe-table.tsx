@@ -411,7 +411,10 @@ export function UniverseTable({
                       {r.sectorQuad}
                     </span>
                   </td>
-                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("cmp"))}>{inr(r.cmp)}</td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("cmp"))}>
+                    <p>{inr(r.cmp)}</p>
+                    <Chg value={r.change1d} />
+                  </td>
                   <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("dayH"))}>{inr(r.dayHigh)}</td>
                   <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("dayL"))}>{inr(r.dayLow)}</td>
                   <td className={cn("px-2 py-1.5", hide("range"))}><RangeBar value={r.rangePos} /></td>

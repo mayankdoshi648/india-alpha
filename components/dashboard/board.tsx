@@ -88,7 +88,7 @@ export function WatchStrip({ data }: { data: DashboardSnapshot }) {
             <p className="text-[11px] text-slate-400">{c.k}</p>
             <p className="mt-0.5 font-mono text-xl tracking-tight text-white tabular-nums">{c.v}</p>
             {c.spark && c.spark.length > 1 ? (
-              <Sparkline values={c.spark} width={88} height={22} />
+              <Sparkline values={c.spark} width={88} height={22} markLast />
             ) : null}
             {c.chg !== null && c.k !== "Advance / Decline" && c.k !== "FII net" ? (
               <Chg value={c.chg} />
@@ -119,7 +119,7 @@ function IndexList({ tiles }: { tiles: IndexTile[] }) {
             <p className="truncate text-[13px] font-medium text-white">{t.name}</p>
             <EmaPills emas={t.emas} />
           </div>
-          <Sparkline values={t.spark ?? []} width={72} height={24} />
+          <Sparkline values={t.spark ?? []} width={72} height={24} markLast />
           <div className="text-right">
             <p className="font-mono text-[15px] text-white tabular-nums">{inr(t.cmp, 2)}</p>
             <Chg value={t.changePct} />
@@ -155,7 +155,9 @@ function Mosaic({ rows, onOpen }: { rows: StockRow[]; onOpen: (s: string) => voi
           title={`${r.name} ${signed(r.change1d)}%`}
         >
           <p className={cn("truncate font-mono font-semibold", dense ? "text-[10px]" : "text-[11px]")}>{r.symbol}</p>
-          <p className="font-mono text-[10px] tabular-nums">{signed(r.change1d)}%</p>
+          <p className={cn("font-mono font-medium tabular-nums", dense ? "text-[10px]" : "text-[11px]")}>
+            {signed(r.change1d)}%
+          </p>
         </button>
       ))}
     </div>
@@ -375,9 +377,9 @@ export function DeskBoard({
         </div>
 
         <div className="flex flex-col gap-2.5 xl:min-h-0">
-          <Pane title="Sector rotation" className="h-[240px] shrink-0">
+          <Pane title="Sector rotation" className="min-h-[380px] xl:max-h-[52%] xl:min-h-[380px]">
             <DeskErrorBoundary>
-              <SectorMatrix sectors={data.sectors} heatmap={data.heatmap} compact />
+              <SectorMatrix sectors={data.sectors} heatmap={data.heatmap} compact heading={false} onOpen={onOpen} />
             </DeskErrorBoundary>
           </Pane>
           <Pane title={data.universe === "nifty500" ? `Universe · Nifty 500 · ${data.stocks.length}` : "Universe · Nifty 50"} className="min-h-[420px] xl:flex-1 xl:min-h-0">

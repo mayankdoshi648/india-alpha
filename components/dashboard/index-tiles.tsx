@@ -26,7 +26,7 @@ export function IndexTiles({ tiles }: { tiles: IndexTile[] }) {
               {inr(t.cmp, 2)}
             </p>
             <div className="relative mt-1 flex items-end justify-between gap-2">
-              <Sparkline values={t.spark ?? []} width={96} height={28} />
+              <Sparkline values={t.spark ?? []} width={96} height={28} markLast />
               {t.asOf ? (
                 <p className="font-mono text-[10px] text-slate-500 tabular-nums">{t.asOf}</p>
               ) : null}
