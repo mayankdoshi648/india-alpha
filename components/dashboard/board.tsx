@@ -52,7 +52,7 @@ function Pane({
         className,
       )}
     >
-      <h2 className="shrink-0 border-b border-white/8 px-3 py-2 text-[11px] font-semibold tracking-[0.16em] text-slate-400 uppercase">
+      <h2 className="sticky top-0 z-20 shrink-0 border-b border-white/8 bg-[#121b2c] px-3 py-2 text-[11px] font-semibold tracking-[0.16em] text-slate-400 uppercase">
         {title}
       </h2>
       <div className="p-3 pb-8">{children}</div>
@@ -159,7 +159,7 @@ function CloseTape({ rows, onOpen }: { rows: StockRow[]; onOpen: (s: string) => 
   const sorted = [...rows].sort((a, b) => b.change1d - a.change1d);
   return (
     <div id="close-tape" className="min-w-0">
-      <div className="sticky top-0 z-10 grid grid-cols-[minmax(0,1fr)_5rem_6.5rem] gap-x-2 bg-[#152033] px-1 py-2 text-[11px] tracking-wide text-slate-400 uppercase">
+      <div className="grid grid-cols-[minmax(0,1fr)_5rem_6.5rem] gap-x-2 bg-[#152033] px-1 py-2 text-[11px] tracking-wide text-slate-400 uppercase">
         <div className="font-medium">Stock</div>
         <div className="text-right font-medium">1D %</div>
         <div className="text-right font-medium">Price</div>
@@ -199,7 +199,7 @@ function ScanList({
   if (!rows.length) return <p className="text-sm text-slate-500">Nothing in this cut.</p>;
   return (
     <div className="min-w-0">
-      <div className="sticky top-0 z-10 grid grid-cols-[minmax(0,1fr)_7.5rem_5rem] gap-x-2 bg-[#152033] px-1 py-2 text-[11px] tracking-wide text-slate-400 uppercase">
+      <div className="grid grid-cols-[minmax(0,1fr)_7.5rem_5rem] gap-x-2 bg-[#152033] px-1 py-2 text-[11px] tracking-wide text-slate-400 uppercase">
         <div className="font-medium">Stock</div>
         <div className="text-right font-medium">{metricLabel}</div>
         <div className="text-right font-medium">1D %</div>
@@ -609,7 +609,7 @@ export function DeskBoard({
               title={`${item.label} · ${item.hint}`}
               onClick={() => pick(item.id)}
               className={cn(
-                "flex items-center justify-center gap-2 rounded-lg px-2 py-2 text-left sm:justify-start",
+                "flex items-center justify-center gap-2 rounded-lg px-2 py-1.5 text-left sm:justify-start",
                 on ? "bg-cyan-400/15 text-cyan-100" : "text-slate-400 hover:bg-white/5 hover:text-slate-200",
               )}
             >
