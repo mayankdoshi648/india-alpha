@@ -70,8 +70,8 @@ const PRESET_COLS: Record<Preset, Set<ColId> | "*"> = {
   core: new Set([
     "watch",
     "stock",
-    "d1",
     "cmp",
+    "d1",
     "gap",
     "vol",
     "volx",
@@ -107,8 +107,8 @@ const PRESET_LABEL: Record<Preset, string> = {
 const COLS: { id: ColId; label: string }[] = [
   { id: "watch", label: "" },
   { id: "stock", label: "Stock" },
-  { id: "d1", label: "1D %" },
   { id: "cmp", label: "CMP" },
+  { id: "d1", label: "1D %" },
   { id: "gap", label: "Gap %" },
   { id: "vol", label: "Volume" },
   { id: "volx", label: "Vol 1D/9D" },
@@ -436,7 +436,6 @@ export function UniverseTable({
                     hide(h.id),
                     h.id === "watch" && "sticky left-0 z-20 bg-[#0b1424]",
                     h.id === "stock" && "sticky left-9 z-20 min-w-[9.5rem] bg-[#0b1424]",
-                    h.id === "d1" && "sticky left-[11.5rem] z-20 min-w-[4.75rem] bg-[#0b1424]",
                   )}
                 >
                   {h.id === "d1" && !indiaSession().open ? "Close %" : h.label}
@@ -485,16 +484,11 @@ export function UniverseTable({
                       <p className="mt-0.5 font-mono text-[12px] text-white tabular-nums">{inr(r.cmp)}</p>
                     </button>
                   </td>
-                  <td
-                    className={cn(
-                      "sticky left-[11.5rem] z-[1] min-w-[4.75rem] bg-[#0e1728] px-2 py-1.5",
-                      hide("d1"),
-                    )}
-                  >
-                    <Chg value={r.change1d} icon={false} size="md" />
-                  </td>
                   <td className={cn("px-2 py-1.5 font-mono whitespace-nowrap tabular-nums", hide("cmp"))}>
                     {inr(r.cmp)}
+                  </td>
+                  <td className={cn("px-2 py-1.5", hide("d1"))}>
+                    <Chg value={r.change1d} icon={false} size="md" />
                   </td>
                   <td className={cn("px-2 py-1.5", hide("gap"))}><Chg value={r.gapPct} /></td>
                   <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("vol"))}>{compact(r.volume)}</td>
