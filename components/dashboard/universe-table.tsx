@@ -9,10 +9,26 @@ import { cn } from "@/lib/utils";
 import { Bookmark, Download, Search } from "lucide-react";
 import { downloadCsv, exportUniverseCsv } from "@/lib/export";
 
-const FILTERS: { id: PatternKind | "all" | "watch" | "fno"; label: string }[] = [
+type TapeFilter =
+  | PatternKind
+  | "all"
+  | "watch"
+  | "fno"
+  | "volspike"
+  | "gap"
+  | "earn"
+  | "rsi_os"
+  | "rsi_ob";
+
+const FILTERS: { id: TapeFilter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "watch", label: "Watchlists" },
   { id: "fno", label: "F&O" },
+  { id: "volspike", label: "Vol ≥1.5x" },
+  { id: "gap", label: "Gap ≥0.5%" },
+  { id: "earn", label: "Earn ≤14d" },
+  { id: "rsi_os", label: "RSI ≤30" },
+  { id: "rsi_ob", label: "RSI ≥70" },
   { id: "breakout", label: "Breakout" },
   { id: "stage2", label: "Stage 2" },
   { id: "volume_surge", label: "Vol surge" },
@@ -50,12 +66,41 @@ type ColId =
 type Preset = "core" | "tape" | "structure" | "flow" | "earnings" | "all";
 
 const PRESET_COLS: Record<Preset, Set<ColId> | "*"> = {
-  core: new Set(["watch", "stock", "d1", "cmp"]),
-  tape: new Set(["watch", "stock", "n50", "sector", "quad", "cmp", "dayH", "dayL", "range", "d1", "w1", "m1", "m3", "streak", "beta", "rsi", "spark", "volx", "gap"]),
-  structure: new Set(["watch", "stock", "sector", "cmp", "emas", "stack", "weekly", "days20", "vs20", "vs50", "vs200", "pivot", "cross", "pos52", "high52", "low52", "s2"]),
+  core: new Set([
+    "watch",
+    "stock",
+    "d1",
+    "cmp",
+    "gap",
+    "vol",
+    "volx",
+    "rsi",
+    "earnDays",
+    "nextEarn",
+    "sector",
+    "spark",
+    "w1",
+    "m1",
+    "dayH",
+    "dayL",
+    "deliv",
+    "atr",
+    "setups",
+  ]),
+  tape: new Set(["watch", "stock", "n50", "sector", "quad", "cmp", "dayH", "dayL", "range", "d1", "w1", "m1", "m3", "streak", "beta", "rsi", "spark", "vol", "volx", "gap"]),
+  structure: new Set(["watch", "stock", "sector", "cmp", "d1", "emas", "stack", "weekly", "days20", "vs20", "vs50", "vs200", "pivot", "cross", "pos52", "high52", "low52", "s2"]),
   flow: new Set(["watch", "stock", "sector", "cmp", "d1", "vol", "avgVol", "turn", "volx", "atr", "rv", "cmf", "vwap", "deliv", "oi", "pcr", "atmIv", "futPrem", "rs"]),
   earnings: new Set(["watch", "stock", "sector", "cmp", "d1", "rsi", "s2", "earnDays", "prevEarn", "earnDay", "nextEarn", "setups"]),
   all: "*",
+};
+
+const PRESET_LABEL: Record<Preset, string> = {
+  core: "Desk",
+  tape: "Tape",
+  structure: "Structure",
+  flow: "Flow",
+  earnings: "Earnings",
+  all: "All cols",
 };
 
 const COLS: { id: ColId; label: string }[] = [
@@ -63,6 +108,12 @@ const COLS: { id: ColId; label: string }[] = [
   { id: "stock", label: "Stock" },
   { id: "d1", label: "1D %" },
   { id: "cmp", label: "CMP" },
+  { id: "gap", label: "Gap %" },
+  { id: "vol", label: "Volume" },
+  { id: "volx", label: "Vol 1D/9D" },
+  { id: "rsi", label: "RSI" },
+  { id: "earnDays", label: "Days to earn" },
+  { id: "nextEarn", label: "Next earnings" },
   { id: "n50", label: "N50" },
   { id: "cap", label: "Cap" },
   { id: "sector", label: "Sector" },
@@ -75,17 +126,13 @@ const COLS: { id: ColId; label: string }[] = [
   { id: "m3", label: "3M" },
   { id: "streak", label: "Streak" },
   { id: "beta", label: "Beta" },
-  { id: "rsi", label: "RSI" },
   { id: "rsiMa", label: "RSI>MA" },
   { id: "spark", label: "7D trend" },
-  { id: "vol", label: "Volume" },
   { id: "avgVol", label: "Avg vol" },
   { id: "turn", label: "Turnover" },
-  { id: "volx", label: "Vol 1D/9D" },
   { id: "atr", label: "ATR %" },
   { id: "rv", label: "RV 20d" },
   { id: "cmf", label: "CMF" },
-  { id: "gap", label: "Gap %" },
   { id: "vwap", label: "vs VWAP" },
   { id: "emas", label: "EMAs" },
   { id: "stack", label: "Daily stack" },
@@ -109,16 +156,14 @@ const COLS: { id: ColId; label: string }[] = [
   { id: "belowH", label: "% below 52W H" },
   { id: "aboveL", label: "% above 52W L" },
   { id: "s2", label: "Stage 2" },
-  { id: "earnDays", label: "Days to earn" },
   { id: "prevEarn", label: "Prev earnings" },
   { id: "earnDay", label: "Earn day" },
-  { id: "nextEarn", label: "Next earnings" },
   { id: "setups", label: "Setups" },
 ];
 
 const WIDTH: Record<Preset, string> = {
-  core: "min-w-[1180px]",
-  tape: "min-w-[1680px]",
+  core: "min-w-[1760px]",
+  tape: "min-w-[1880px]",
   structure: "min-w-[1580px]",
   flow: "min-w-[1480px]",
   earnings: "min-w-[1180px]",
@@ -153,7 +198,7 @@ export function UniverseTable({
   embedded?: boolean;
 }) {
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>("all");
+  const [filter, setFilter] = useState<TapeFilter>("all");
   const [cap, setCap] = useState<"all" | "large" | "mid" | "small">("all");
   const [sector, setSector] = useState("all");
   const [quad, setQuad] = useState<RotationQuadrant | "all">("all");
@@ -176,7 +221,24 @@ export function UniverseTable({
       if (quad !== "all" && r.sectorQuad !== quad) return false;
       if (filter === "watch" && !watch.has(r.symbol)) return false;
       if (filter === "fno" && !r.fo?.listed) return false;
-      if (filter !== "all" && filter !== "watch" && filter !== "fno" && !r.patterns.includes(filter)) return false;
+      if (filter === "volspike" && r.volSpike < 1.5) return false;
+      if (filter === "gap" && Math.abs(r.gapPct) < 0.5) return false;
+      if (filter === "earn" && (r.daysToEarnings == null || r.daysToEarnings > 14)) return false;
+      if (filter === "rsi_os" && r.rsi > 30) return false;
+      if (filter === "rsi_ob" && r.rsi < 70) return false;
+      if (
+        filter !== "all" &&
+        filter !== "watch" &&
+        filter !== "fno" &&
+        filter !== "volspike" &&
+        filter !== "gap" &&
+        filter !== "earn" &&
+        filter !== "rsi_os" &&
+        filter !== "rsi_ob" &&
+        !r.patterns.includes(filter)
+      ) {
+        return false;
+      }
       if (q) {
         const s = q.toLowerCase();
         if (!r.symbol.toLowerCase().includes(s) && !r.name.toLowerCase().includes(s) && !r.sector.toLowerCase().includes(s)) {
@@ -207,7 +269,6 @@ export function UniverseTable({
 
   return (
     <div className={cn(embedded ? "flex flex-col gap-1.5" : "space-y-3")}>
-      {embedded ? null : (
       <div id="universe-quad-counts" className="grid grid-cols-4 gap-1.5 xl:grid-cols-8">
         {QUADS.map((q) => (
           <button
@@ -248,7 +309,6 @@ export function UniverseTable({
         </div>
         </>
       </div>
-      )}
       <div className={cn("flex flex-col gap-2", embedded ? "" : "lg:flex-row lg:items-center lg:justify-between")}>
         <div className="relative max-w-sm flex-1">
           <Search className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
@@ -259,7 +319,7 @@ export function UniverseTable({
             className="pl-8"
           />
         </div>
-        <div className={cn("flex flex-wrap gap-1.5", embedded && rows.length <= 80 && "hidden")}>
+        <div className="flex flex-wrap gap-1.5">
           {(["all", "large", "mid", "small"] as const).map((c) => (
             <button
               key={c}
@@ -288,7 +348,7 @@ export function UniverseTable({
           ))}
         </div>
       </div>
-      <div className={cn("flex flex-wrap gap-1.5", embedded && "hidden")}>
+      <div className="flex flex-wrap gap-1.5">
         <button
           type="button"
           onClick={() => setSector("all")}
@@ -326,11 +386,11 @@ export function UniverseTable({
               type="button"
               onClick={() => setPreset(p)}
               className={cn(
-                "rounded-full border px-2.5 py-1 text-[11px] capitalize",
+                "rounded-full border px-2.5 py-1 text-[11px]",
                 preset === p ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-200" : "border-white/10 text-muted-foreground",
               )}
             >
-              {p}
+              {PRESET_LABEL[p]}
             </button>
           ))}
           <button
@@ -344,7 +404,7 @@ export function UniverseTable({
           </button>
         </span>
       </p>
-      <div className="overflow-auto rounded-lg border border-white/8">
+      <div id="universe-table" className="overflow-auto rounded-lg border border-white/8">
         <table className={cn("w-full border-collapse text-left text-xs", WIDTH[preset])}>
           <thead className="sticky top-0 z-10 bg-[#0b1424] text-[10px] tracking-wide text-muted-foreground uppercase">
             <tr>
@@ -416,6 +476,16 @@ export function UniverseTable({
                   <td className={cn("px-2 py-1.5 font-mono whitespace-nowrap tabular-nums", hide("cmp"))}>
                     {inr(r.cmp)}
                   </td>
+                  <td className={cn("px-2 py-1.5", hide("gap"))}><Chg value={r.gapPct} /></td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("vol"))}>{compact(r.volume)}</td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("volx"), r.volSpike >= 1.5 && "text-cyan-300")}>
+                    {r.volSpike.toFixed(2)}x
+                  </td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("rsi"), r.rsi < 30 ? "text-lime-300" : r.rsi > 70 ? "text-rose-300" : "")}>
+                    {r.rsi.toFixed(1)}
+                  </td>
+                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("earnDays"))}>{r.daysToEarnings ?? "—"}</td>
+                  <td className={cn("px-2 py-1.5 whitespace-nowrap", hide("nextEarn"))}>{fmtDate(r.nextEarningDate)}</td>
                   <td className={cn("px-2 py-1.5", hide("n50"))}>{r.nifty50 ? "Y" : ""}</td>
                   <td className={cn("px-2 py-1.5 capitalize", hide("cap"))}>{r.cap}</td>
                   <td className={cn("px-2 py-1.5 whitespace-nowrap", hide("sector"))}>{r.sector}</td>
@@ -435,23 +505,15 @@ export function UniverseTable({
                     {r.streak > 0 ? `+${r.streak}` : r.streak}
                   </td>
                   <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("beta"))}>{r.beta.toFixed(2)}</td>
-                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("rsi"), r.rsi < 30 ? "text-lime-300" : r.rsi > 70 ? "text-rose-300" : "")}>
-                    {r.rsi.toFixed(1)}
-                  </td>
                   <td className={cn("px-2 py-1.5", hide("rsiMa"))}>{r.rsiAboveMa ? "Yes" : "No"}</td>
                   <td className={cn("px-2 py-1.5", hide("spark"))}><Sparkline values={r.spark} /></td>
-                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("vol"))}>{compact(r.volume)}</td>
                   <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("avgVol"))}>{compact(r.avgVolume)}</td>
                   <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("turn"))}>{compact(r.turnover)}</td>
-                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("volx"), r.volSpike >= 1.5 && "text-cyan-300")}>
-                    {r.volSpike.toFixed(2)}x
-                  </td>
                   <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("atr"))}>{r.atrPct.toFixed(2)}</td>
                   <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("rv"))}>{r.rv20.toFixed(1)}</td>
                   <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("cmf"), r.cmf > 0 ? "text-emerald-300" : "text-rose-300")}>
                     {r.cmf.toFixed(2)}
                   </td>
-                  <td className={cn("px-2 py-1.5", hide("gap"))}><Chg value={r.gapPct} /></td>
                   <td className={cn("px-2 py-1.5", hide("vwap"))}><Chg value={r.vwapDist} /></td>
                   <td className={cn("px-2 py-1.5", hide("emas"))}><EmaPills emas={r.emas} /></td>
                   <td className={cn("px-2 py-1.5 capitalize", hide("stack"))}>{r.emaStack}</td>
@@ -477,12 +539,10 @@ export function UniverseTable({
                   <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("belowH"))}>{r.below52wHigh.toFixed(1)}%</td>
                   <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("aboveL"))}>{r.above52wLow.toFixed(1)}%</td>
                   <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("s2"))}>{r.stage2Score}/7</td>
-                  <td className={cn("px-2 py-1.5 font-mono tabular-nums", hide("earnDays"))}>{r.daysToEarnings ?? "—"}</td>
                   <td className={cn("px-2 py-1.5 whitespace-nowrap", hide("prevEarn"))}>{fmtDate(r.prevEarningDate)}</td>
                   <td className={cn("px-2 py-1.5", hide("earnDay"))}>
                     {r.earningsImpactPct === null ? "—" : <Chg value={r.earningsImpactPct} />}
                   </td>
-                  <td className={cn("px-2 py-1.5 whitespace-nowrap", hide("nextEarn"))}>{fmtDate(r.nextEarningDate)}</td>
                   <td className={cn("px-2 py-1.5", hide("setups"))}>
                     <div className="flex max-w-56 flex-wrap gap-1">
                       {r.patterns.slice(0, 3).map((p) => (
