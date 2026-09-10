@@ -9,10 +9,8 @@ import { SessionBar } from "@/components/dashboard/session-bar";
 import { StockChart } from "@/components/dashboard/stock-chart";
 import { StockFoPanel } from "@/components/dashboard/stock-fo";
 import { SwingPanel } from "@/components/dashboard/swing-setup";
-import { ChartPatternBoard, ChartPatternMini } from "@/components/dashboard/chart-pattern-board";
-import { DeskBoard, WatchStrip } from "@/components/dashboard/board";
-import { IndexTiles } from "@/components/dashboard/index-tiles";
-import { SectorMatrix } from "@/components/dashboard/sector-matrix";
+import { ChartPatternMini } from "@/components/dashboard/chart-pattern-board";
+import { DeskBoard } from "@/components/dashboard/board";
 import { DeskErrorBoundary } from "@/components/dashboard/error-boundary";
 import { Panel, Drawer } from "@/components/dashboard/primitives";
 import { Button } from "@/components/ui/button";
@@ -49,9 +47,7 @@ const EMPTY_WATCH: WatchStore = {
 
 const EMPTY_DHAN: DhanCredentials = { accessToken: "", clientId: "" };
 
-export type DeskView = "desk" | "patterns";
-
-export function MarketDesk({ view }: { view: DeskView }) {
+export function MarketDesk() {
   const [universe, setUniverse] = useState<UniverseId>("nifty50");
   const [settings, setSettings] = useState<StrategySettings>(DEFAULT_SETTINGS);
   const [data, setData] = useState<DashboardSnapshot | null>(null);
@@ -351,27 +347,6 @@ export function MarketDesk({ view }: { view: DeskView }) {
               India Market Desk
             </Link>
           </div>
-          <div className="flex shrink-0 overflow-hidden rounded-md border border-amber-400/40">
-            <Link
-              href="/"
-              id="view-patterns"
-              className={`inline-flex h-8 items-center px-3 text-[13px] font-medium ${view === "patterns" ? "bg-amber-400/20 text-amber-100" : "text-amber-200/70 hover:bg-amber-400/10"}`}
-            >
-              Chart patterns
-              {data?.chartPatterns?.length ? (
-                <span className="ml-1.5 rounded-md bg-amber-400/20 px-1.5 font-mono text-[11px] tabular-nums">
-                  {data.chartPatterns.length}
-                </span>
-              ) : null}
-            </Link>
-            <Link
-              href="/desk"
-              id="view-desk"
-              className={`inline-flex h-8 items-center px-3 text-[13px] ${view === "desk" ? "bg-amber-400/20 text-amber-100" : "text-slate-400 hover:bg-white/5"}`}
-            >
-              Desk
-            </Link>
-          </div>
           <div className="flex w-full flex-wrap items-center gap-1.5 sm:ml-auto sm:w-auto">
               <div className="flex overflow-hidden rounded-md border border-white/10">
                 <button
@@ -473,49 +448,14 @@ export function MarketDesk({ view }: { view: DeskView }) {
 
         {data ? (
           <DeskErrorBoundary>
-            {view === "patterns" ? (
-              <div className="flex min-h-0 flex-1 flex-col gap-2.5">
-                <WatchStrip data={data} />
-                <IndexTiles tiles={data.indices} />
-                {/* Bounded so a full-universe close grid scrolls itself instead of crushing the pattern table. */}
-                <section className="max-h-[45vh] shrink-0 overflow-auto rounded-xl border border-white/10 bg-[#121b2c] p-3">
-                  <SectorMatrix
-                    sectors={data.sectors}
-                    heatmap={data.heatmap}
-                    compact
-                    onOpen={setOpenSymbol}
-                  />
-                </section>
-                <section
-                  id="breakout-patterns"
-                  className="flex min-h-[360px] flex-1 flex-col overflow-hidden rounded-xl border border-amber-400/50 bg-[#121b2c]"
-                >
-                  <div className="shrink-0 border-b border-amber-400/20 px-4 py-3">
-                    <h1 className="text-lg font-semibold tracking-tight text-white">Chart patterns</h1>
-                    <p className="text-[13px] text-slate-400">
-                      Triangles, flags, wedges, head &amp; shoulders, double/triple on daily, weekly and monthly bars.
-                    </p>
-                  </div>
-                  <div className="min-h-0 flex-1 overflow-auto p-4">
-                    <ChartPatternBoard
-                      variant="page"
-                      hits={data.chartPatterns ?? []}
-                      universe={data.universe}
-                      onOpen={setOpenSymbol}
-                    />
-                  </div>
-                </section>
-              </div>
-            ) : (
-              <div className="min-h-full">
-                <DeskBoard
-                  data={data}
-                  watch={watchSet}
-                  onToggleWatch={toggleWatch}
-                  onOpen={setOpenSymbol}
-                />
-              </div>
-            )}
+            <div className="min-h-full">
+              <DeskBoard
+                data={data}
+                watch={watchSet}
+                onToggleWatch={toggleWatch}
+                onOpen={setOpenSymbol}
+              />
+            </div>
           </DeskErrorBoundary>
         ) : !loading && error ? (
           <div className="flex flex-1 items-center justify-center text-sm text-slate-500">

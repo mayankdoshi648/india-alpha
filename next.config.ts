@@ -10,6 +10,12 @@ const nextConfig: NextConfig = {
         destination: "/desk",
         permanent: false,
       },
+      {
+        source: "/",
+        has: [{ type: "query", key: "view", value: "patterns" }],
+        destination: "/desk",
+        permanent: false,
+      },
     ];
   },
 };

@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function DeskPage() {
-  return <MarketDesk view="desk" />;
+  return <MarketDesk />;
 }
