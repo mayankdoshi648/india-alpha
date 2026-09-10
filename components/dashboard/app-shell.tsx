@@ -335,7 +335,7 @@ export function MarketDesk({ view }: { view: DeskView }) {
 
   return (
     <div className="flex h-full min-h-dvh flex-col overflow-hidden bg-[#0b1220] text-slate-100">
-      <header className="shrink-0 border-b border-white/10 bg-[#0b1220]">
+      <header className="relative z-30 shrink-0 border-b border-white/10 bg-[#0b1220]">
         <div className="flex flex-wrap items-center gap-2 px-3 py-2">
           <div className="flex min-w-0 items-center gap-2.5">
             <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sky-400/15 text-sky-300">
@@ -444,7 +444,7 @@ export function MarketDesk({ view }: { view: DeskView }) {
         )}
       </header>
 
-      <main className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-auto px-3 py-2.5">
+      <main id="desk-scroll" className="relative z-0 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain px-3 py-2.5">
         {error ? (
           <Panel className="flex flex-wrap items-center gap-3 text-rose-300">
             <WifiOff className="size-4" />
@@ -501,7 +501,7 @@ export function MarketDesk({ view }: { view: DeskView }) {
                 </section>
               </div>
             ) : (
-              <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              <div className="min-h-full">
                 <DeskBoard
                   data={data}
                   watch={watchSet}
