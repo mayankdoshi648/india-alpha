@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type {
   BreadthCircle,
   DashboardSnapshot,
@@ -16,6 +17,17 @@ import { UniverseTable } from "@/components/dashboard/universe-table";
 import { DeskErrorBoundary } from "@/components/dashboard/error-boundary";
 import { StockFoList } from "@/components/dashboard/stock-fo";
 import { cn } from "@/lib/utils";
+import {
+  Activity,
+  Bell,
+  LayoutGrid,
+  LayoutList,
+  Landmark,
+  Layers,
+  Percent,
+  Table2,
+  TrendingUp,
+} from "lucide-react";
 
 function Pane({
   id,
@@ -142,40 +154,33 @@ function heat(chg: number) {
 function CloseTape({ rows, onOpen }: { rows: StockRow[]; onOpen: (s: string) => void }) {
   const sorted = [...rows].sort((a, b) => b.change1d - a.change1d);
   return (
-    <section className="shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[#121b2c]">
-      <h2 className="border-b border-white/8 px-3 py-2 text-[11px] font-semibold tracking-[0.16em] text-slate-400 uppercase">
-        Stock close · price and 1D %
-      </h2>
-      <div className="max-h-[min(56vh,32rem)] overflow-auto">
-        <table className="w-full text-left">
-          <thead className="sticky top-0 bg-[#152033] text-[11px] tracking-wide text-slate-400 uppercase">
-            <tr>
-              <th className="px-3 py-2 font-medium">Stock</th>
-              <th className="px-3 py-2 text-right font-medium">Price</th>
-              <th className="px-3 py-2 text-right font-medium">1D %</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((r) => (
-              <tr
-                key={r.symbol}
-                className="cursor-pointer border-t border-white/8 hover:bg-white/5"
-                onClick={() => onOpen(r.symbol)}
-              >
-                <td className="px-3 py-2">
-                  <p className="font-mono text-[13px] font-semibold text-white">{r.symbol}</p>
-                  <p className="truncate text-[11px] text-slate-500">{r.name}</p>
-                </td>
-                <td className="px-3 py-2 text-right font-mono text-[15px] text-white tabular-nums">{inr(r.cmp)}</td>
-                <td className="px-3 py-2 text-right">
-                  <Chg value={r.change1d} icon={false} size="md" />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
+    <table className="w-full text-left">
+      <thead className="sticky top-0 bg-[#152033] text-[11px] tracking-wide text-slate-400 uppercase">
+        <tr>
+          <th className="px-3 py-2 font-medium">Stock</th>
+          <th className="px-3 py-2 text-right font-medium">Price</th>
+          <th className="px-3 py-2 text-right font-medium">1D %</th>
+        </tr>
+      </thead>
+      <tbody>
+        {sorted.map((r) => (
+          <tr
+            key={r.symbol}
+            className="cursor-pointer border-t border-white/8 hover:bg-white/5"
+            onClick={() => onOpen(r.symbol)}
+          >
+            <td className="px-3 py-2">
+              <p className="font-mono text-[13px] font-semibold text-white">{r.symbol}</p>
+              <p className="truncate text-[11px] text-slate-500">{r.name}</p>
+            </td>
+            <td className="px-3 py-2 text-right font-mono text-[15px] text-white tabular-nums">{inr(r.cmp)}</td>
+            <td className="px-3 py-2 text-right">
+              <Chg value={r.change1d} icon={false} size="md" />
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
@@ -373,6 +378,44 @@ function BreadthBars({ gauges }: { gauges: BreadthCircle[] }) {
   );
 }
 
+type DeskPane =
+  | "closes"
+  | "universe"
+  | "heat"
+  | "sectors"
+  | "indices"
+  | "alerts"
+  | "swings"
+  | "fno"
+  | "breadth";
+
+const DESK_NAV: {
+  id: DeskPane;
+  label: string;
+  hint: string;
+  Icon: typeof Percent;
+}[] = [
+  { id: "closes", label: "Closes", hint: "Price & 1D %", Icon: Percent },
+  { id: "universe", label: "Universe", hint: "Full tape", Icon: Table2 },
+  { id: "heat", label: "Heat", hint: "1D mosaic", Icon: LayoutGrid },
+  { id: "sectors", label: "Sectors", hint: "Rotation", Icon: LayoutList },
+  { id: "indices", label: "Indices", hint: "Index tape", Icon: Landmark },
+  { id: "alerts", label: "Alerts", hint: "Desk flags", Icon: Bell },
+  { id: "swings", label: "Swings", hint: "VCP / BO", Icon: TrendingUp },
+  { id: "fno", label: "F&O", hint: "OI & PCR", Icon: Layers },
+  { id: "breadth", label: "Breadth", hint: "EMA %", Icon: Activity },
+];
+
+function readDeskPane(): DeskPane {
+  try {
+    const saved = localStorage.getItem("imd-desk-pane");
+    if (DESK_NAV.some((n) => n.id === saved)) return saved as DeskPane;
+  } catch {
+    // ignore
+  }
+  return "closes";
+}
+
 export function DeskBoard({
   data,
   watch,
@@ -384,31 +427,60 @@ export function DeskBoard({
   onToggleWatch: (symbol: string) => void;
   onOpen: (symbol: string) => void;
 }) {
+  const [pane, setPane] = useState<DeskPane>("closes");
   const gainers = [...data.stocks].sort((a, b) => b.change1d - a.change1d).slice(0, 5);
   const losers = [...data.stocks].sort((a, b) => a.change1d - b.change1d).slice(0, 5);
+  const active = DESK_NAV.find((n) => n.id === pane) ?? DESK_NAV[0];
+
+  useEffect(() => {
+    setPane(readDeskPane());
+  }, []);
+
+  const pick = (id: DeskPane) => {
+    setPane(id);
+    try {
+      localStorage.setItem("imd-desk-pane", id);
+    } catch {
+      // ignore
+    }
+  };
 
   return (
-    <div className="flex flex-1 flex-col gap-2.5 xl:min-h-0">
+    <div className="flex min-h-0 flex-1 flex-col gap-2.5 xl:min-h-0">
       <WatchStrip data={data} />
-      <CloseTape rows={data.stocks} onOpen={onOpen} />
-      <div className="grid grid-cols-1 gap-2.5 xl:min-h-[42rem] xl:flex-1 xl:grid-cols-[20rem_minmax(0,1fr)_22rem] xl:grid-rows-[minmax(0,1fr)]">
-        <div className="flex flex-col gap-2.5 xl:min-h-0">
-          <Pane title="Index tape" className="hidden xl:flex xl:max-h-[34%]">
-            <IndexList tiles={data.indices} />
-          </Pane>
-          <Pane title={data.universe === "nifty500" ? `Nifty 500 · 1D heat · ${data.stocks.length}` : "Nifty 50 · 1D heat"} className="xl:flex-1">
-            <Mosaic rows={data.stocks} onOpen={onOpen} />
-          </Pane>
-          <Pane title="Gainers & losers" className="xl:max-h-[28%]">
-            <div className="grid grid-cols-2 gap-3">
-              <MoveCol title="Up" rows={gainers} onOpen={onOpen} metric={(r) => <Chg value={r.change1d} />} />
-              <MoveCol title="Down" rows={losers} onOpen={onOpen} metric={(r) => <Chg value={r.change1d} />} />
-            </div>
-          </Pane>
-        </div>
-
-        <div className="flex flex-col gap-2.5 xl:min-h-0">
-          <Pane title={data.universe === "nifty500" ? `Universe · Nifty 500 · ${data.stocks.length}` : "Universe · Nifty 50"} className="min-h-[360px] xl:flex-1 xl:min-h-[320px]">
+      <div className="flex min-h-0 flex-1 gap-2.5">
+        <nav
+          id="desk-nav"
+          className="flex w-11 shrink-0 flex-col gap-0.5 overflow-auto sm:w-44"
+          aria-label="Desk sections"
+        >
+          {DESK_NAV.map((item) => {
+            const on = pane === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                id={`desk-nav-${item.id}`}
+                aria-label={item.label}
+                title={`${item.label} · ${item.hint}`}
+                onClick={() => pick(item.id)}
+                className={cn(
+                  "flex items-center justify-center gap-2 rounded-lg px-2 py-2 text-left sm:justify-start",
+                  on ? "bg-cyan-400/15 text-cyan-100" : "text-slate-400 hover:bg-white/5 hover:text-slate-200",
+                )}
+              >
+                <item.Icon className="size-4 shrink-0" />
+                <span className="hidden min-w-0 sm:block">
+                  <span className="block text-[13px] font-medium">{item.label}</span>
+                  <span className="text-[11px] text-slate-500">{item.hint}</span>
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+        <Pane title={active.label} className="min-h-0 min-w-0 flex-1 overflow-hidden">
+          {pane === "closes" ? <CloseTape rows={data.stocks} onOpen={onOpen} /> : null}
+          {pane === "universe" ? (
             <UniverseTable
               key={data.universe}
               rows={data.stocks}
@@ -417,28 +489,27 @@ export function DeskBoard({
               onOpen={onOpen}
               embedded
             />
-          </Pane>
-          <Pane title="Sector rotation" className="min-h-[220px] xl:max-h-[40%] xl:min-h-[220px]">
+          ) : null}
+          {pane === "heat" ? (
+            <div className="space-y-4">
+              <Mosaic rows={data.stocks} onOpen={onOpen} />
+              <div className="grid grid-cols-2 gap-3">
+                <MoveCol title="Up" rows={gainers} onOpen={onOpen} metric={(r) => <Chg value={r.change1d} />} />
+                <MoveCol title="Down" rows={losers} onOpen={onOpen} metric={(r) => <Chg value={r.change1d} />} />
+              </div>
+            </div>
+          ) : null}
+          {pane === "sectors" ? (
             <DeskErrorBoundary>
               <SectorMatrix sectors={data.sectors} heatmap={data.heatmap} compact heading={false} onOpen={onOpen} />
             </DeskErrorBoundary>
-          </Pane>
-        </div>
-
-        <div className="flex flex-col gap-2.5 xl:min-h-0">
-          <Pane title="Alerts" className="xl:max-h-[26%]">
-            <AlertList alerts={data.alerts ?? []} onPick={onOpen} />
-          </Pane>
-          <Pane title="Swing · VCP / breakout" className="xl:max-h-[34%]">
-            <SetupList hits={data.patterns} onPick={onOpen} />
-          </Pane>
-          <Pane title="F&O · index + stocks" className="xl:flex-1">
-            <FoWatch data={data.derivatives} stocks={data.stocks} onOpen={onOpen} />
-          </Pane>
-          <Pane title="EMA breadth" className="xl:max-h-[22%]">
-            <BreadthBars gauges={data.breadthGauges} />
-          </Pane>
-        </div>
+          ) : null}
+          {pane === "indices" ? <IndexList tiles={data.indices} /> : null}
+          {pane === "alerts" ? <AlertList alerts={data.alerts ?? []} onPick={onOpen} /> : null}
+          {pane === "swings" ? <SetupList hits={data.patterns} onPick={onOpen} /> : null}
+          {pane === "fno" ? <FoWatch data={data.derivatives} stocks={data.stocks} onOpen={onOpen} /> : null}
+          {pane === "breadth" ? <BreadthBars gauges={data.breadthGauges} /> : null}
+        </Pane>
       </div>
     </div>
   );
