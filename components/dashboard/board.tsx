@@ -73,14 +73,14 @@ export function WatchStrip({ data }: { data: DashboardSnapshot }) {
   ].filter(Boolean) as { k: string; v: string; chg: number | null; spark?: number[] }[];
 
   return (
-    <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-7">
+    <div className="flex shrink-0 gap-2 overflow-x-auto pb-0.5 xl:grid xl:grid-cols-7 xl:overflow-visible">
       {cards.map((c) => {
         const up = (c.chg ?? 0) >= 0;
         return (
           <div
             key={c.k}
             className={cn(
-              "rounded-xl border border-white/10 bg-[#121b2c] px-3 py-2.5",
+              "min-w-[9.5rem] shrink-0 rounded-xl border border-white/10 bg-[#121b2c] px-3 py-2.5 xl:min-w-0",
               c.chg === null ? "" : up ? "shadow-[inset_3px_0_0_#34d399]" : "shadow-[inset_3px_0_0_#fb7185]",
             )}
           >
@@ -137,6 +137,46 @@ function heat(chg: number) {
   if (chg > -0.5) return "bg-rose-500/25 text-rose-100";
   if (chg > -2) return "bg-rose-500/70 text-white";
   return "bg-rose-600 text-white";
+}
+
+function CloseTape({ rows, onOpen }: { rows: StockRow[]; onOpen: (s: string) => void }) {
+  const sorted = [...rows].sort((a, b) => b.change1d - a.change1d);
+  return (
+    <section className="shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[#121b2c]">
+      <h2 className="border-b border-white/8 px-3 py-2 text-[11px] font-semibold tracking-[0.16em] text-slate-400 uppercase">
+        Stock close · price and 1D %
+      </h2>
+      <div className="max-h-[min(56vh,32rem)] overflow-auto">
+        <table className="w-full text-left">
+          <thead className="sticky top-0 bg-[#152033] text-[11px] tracking-wide text-slate-400 uppercase">
+            <tr>
+              <th className="px-3 py-2 font-medium">Stock</th>
+              <th className="px-3 py-2 text-right font-medium">Price</th>
+              <th className="px-3 py-2 text-right font-medium">1D %</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((r) => (
+              <tr
+                key={r.symbol}
+                className="cursor-pointer border-t border-white/8 hover:bg-white/5"
+                onClick={() => onOpen(r.symbol)}
+              >
+                <td className="px-3 py-2">
+                  <p className="font-mono text-[13px] font-semibold text-white">{r.symbol}</p>
+                  <p className="truncate text-[11px] text-slate-500">{r.name}</p>
+                </td>
+                <td className="px-3 py-2 text-right font-mono text-[15px] text-white tabular-nums">{inr(r.cmp)}</td>
+                <td className="px-3 py-2 text-right">
+                  <Chg value={r.change1d} icon={false} size="md" />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
 }
 
 function Mosaic({ rows, onOpen }: { rows: StockRow[]; onOpen: (s: string) => void }) {
@@ -350,9 +390,10 @@ export function DeskBoard({
   return (
     <div className="flex flex-1 flex-col gap-2.5 xl:min-h-0">
       <WatchStrip data={data} />
+      <CloseTape rows={data.stocks} onOpen={onOpen} />
       <div className="grid grid-cols-1 gap-2.5 xl:min-h-[42rem] xl:flex-1 xl:grid-cols-[20rem_minmax(0,1fr)_22rem] xl:grid-rows-[minmax(0,1fr)]">
         <div className="flex flex-col gap-2.5 xl:min-h-0">
-          <Pane title="Index tape" className="xl:max-h-[34%]">
+          <Pane title="Index tape" className="hidden xl:flex xl:max-h-[34%]">
             <IndexList tiles={data.indices} />
           </Pane>
           <Pane title={data.universe === "nifty500" ? `Nifty 500 · 1D heat · ${data.stocks.length}` : "Nifty 50 · 1D heat"} className="xl:flex-1">
