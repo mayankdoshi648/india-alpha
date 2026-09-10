@@ -13,6 +13,7 @@ import {
   foStandouts,
 } from "@/lib/fo-radar";
 import { signed } from "@/lib/format";
+import { indiaSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
 const CHIP_CLASS: Record<FoChipTone, string> = {
@@ -68,6 +69,8 @@ export function FoRadar({
   const standouts = useMemo(() => foStandouts(rows, 8, niftyChange), [rows, niftyChange]);
   const active = groups.find((g) => g.kind === kind) ?? groups[0];
   const streaks = active?.rows ?? [];
+  const sessionClosed = !indiaSession().open;
+  const pxLabel = sessionClosed ? "close" : "px";
 
   return (
     <div className="space-y-6">
@@ -130,7 +133,7 @@ export function FoRadar({
                     ))}
                   </div>
                   <p className="font-mono text-[11px] leading-4 text-slate-400 tabular-nums">
-                    px {signed(s.pxPct)}%
+                    {pxLabel} {signed(s.pxPct)}%
                     <br />
                     OI {signed(s.oiPct)}%
                   </p>

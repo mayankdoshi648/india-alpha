@@ -53,7 +53,13 @@ export function SessionBar({
       <span>F&O {data.sources.derivatives}</span>
       <span>flow {data.sources.flows}</span>
       {tokenLabel ? <span className={tokenTone}>{tokenLabel}</span> : <span>Dhan disconnected</span>}
-      {now.open ? <span className="text-cyan-300">auto-refresh 60s</span> : null}
+      {now.open ? (
+        <span className="text-cyan-300">auto-refresh 60s</span>
+      ) : now.postClose ? (
+        <span className="text-cyan-300">post-close · locking session %</span>
+      ) : (
+        <span>session close · 1D % vs prev close</span>
+      )}
     </div>
   );
 }

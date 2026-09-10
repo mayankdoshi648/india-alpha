@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Bookmark, Download, Search } from "lucide-react";
 import { downloadCsv, exportUniverseCsv } from "@/lib/export";
+import { indiaSession } from "@/lib/session";
 
 type TapeFilter =
   | PatternKind
@@ -438,7 +439,7 @@ export function UniverseTable({
                     h.id === "d1" && "sticky left-[11.5rem] z-20 min-w-[4.75rem] bg-[#0b1424]",
                   )}
                 >
-                  {h.label}
+                  {h.id === "d1" && !indiaSession().open ? "Close %" : h.label}
                 </th>
               ))}
             </tr>

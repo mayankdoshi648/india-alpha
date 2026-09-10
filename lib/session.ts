@@ -54,6 +54,8 @@ export function indiaSession(now = new Date()): {
   label: string;
   clock: string;
   open: boolean;
+  /** Weekday after 15:30 IST, while official close is still settling. */
+  postClose: boolean;
 } {
   const { weekday, hour, minute, label } = kolkataParts(now);
   const mins = hour * 60 + minute;
@@ -62,12 +64,20 @@ export function indiaSession(now = new Date()): {
   if (weekend) phase = "weekend";
   else if (mins >= 9 * 60 && mins < 9 * 60 + 15) phase = "preopen";
   else if (mins >= 9 * 60 + 15 && mins < 15 * 60 + 30) phase = "open";
+  const postClose = !weekend && mins >= 15 * 60 + 30 && mins < 18 * 60;
   return {
     phase,
     label,
     clock: label,
     open: phase === "open" || phase === "preopen",
+    postClose,
   };
+}
+
+/** Keep pulling last/close so post-market analysis has the session print. */
+export function shouldRefreshTape(now = new Date()): boolean {
+  const s = indiaSession(now);
+  return s.open || s.postClose;
 }
 
 export function jwtExpiryMs(token: string): number | null {

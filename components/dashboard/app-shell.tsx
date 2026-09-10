@@ -18,7 +18,7 @@ import { Panel, Drawer } from "@/components/dashboard/primitives";
 import { Button } from "@/components/ui/button";
 import { PATTERN_LABEL, inr } from "@/lib/format";
 import { Chg, EmaPills } from "@/components/dashboard/primitives";
-import { indiaSession, shouldRenewDhanToken } from "@/lib/session";
+import { indiaSession, shouldRefreshTape, shouldRenewDhanToken } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import {
   KeyRound,
@@ -237,7 +237,7 @@ export function MarketDesk({ view }: { view: DeskView }) {
   useEffect(() => {
     const id = setInterval(() => {
       if (document.hidden) return;
-      if (!indiaSession().open) return;
+      if (!shouldRefreshTape()) return;
       void loadTape();
     }, 60_000);
     return () => clearInterval(id);
@@ -552,7 +552,12 @@ export function MarketDesk({ view }: { view: DeskView }) {
             <div className="space-y-4 px-4 pb-8">
               <div className="flex items-end justify-between">
                 <p className="font-mono text-3xl tabular-nums">{inr(row.cmp)}</p>
-                <Chg value={row.change1d} />
+                <span className="text-right">
+                  <Chg value={row.change1d} />
+                  <span className="mt-0.5 block text-[10px] tracking-wide text-slate-500 uppercase">
+                    {indiaSession().open ? "1D vs prev close" : "session close vs prev close"}
+                  </span>
+                </span>
               </div>
               <div id="swing-panel">
                 <SwingPanel vcp={liveSwing.vcp ?? row.vcp} breakout={liveSwing.breakout ?? row.breakout} />
