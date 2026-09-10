@@ -150,6 +150,36 @@ function heat(chg: number) {
   return "bg-rose-600 text-white";
 }
 
+function CloseTape({ rows, onOpen }: { rows: StockRow[]; onOpen: (s: string) => void }) {
+  const sorted = [...rows].sort((a, b) => b.change1d - a.change1d);
+  return (
+    <div id="close-tape" className="min-w-0">
+      <div className="grid grid-cols-[minmax(0,1fr)_5rem_6.5rem] gap-x-2 bg-[#152033] px-1 py-2 text-[11px] tracking-wide text-slate-400 uppercase">
+        <div className="font-medium">Stock</div>
+        <div className="text-right font-medium">1D %</div>
+        <div className="text-right font-medium">Price</div>
+      </div>
+      {sorted.map((r) => (
+        <button
+          key={r.symbol}
+          type="button"
+          className="grid w-full grid-cols-[minmax(0,1fr)_5rem_6.5rem] gap-x-2 border-t border-white/8 px-1 py-2 text-left hover:bg-white/5"
+          onClick={() => onOpen(r.symbol)}
+        >
+          <div className="min-w-0">
+            <p className="truncate font-mono text-[13px] font-semibold text-white">{r.symbol}</p>
+            <p className="truncate text-[11px] text-slate-500">{r.name}</p>
+          </div>
+          <div className="flex items-center justify-end whitespace-nowrap">
+            <Chg value={r.change1d} icon={false} size="md" />
+          </div>
+          <p className="self-center text-right font-mono text-[15px] text-white tabular-nums">{inr(r.cmp)}</p>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function Mosaic({ rows, onOpen }: { rows: StockRow[]; onOpen: (s: string) => void }) {
   const tape = rows;
   const dense = tape.length > 80;
@@ -353,7 +383,7 @@ const DESK_NAV: {
   Icon: typeof Landmark;
 }[] = [
   { id: "indices", label: "Indices", hint: "Tiles & breadth", Icon: Landmark },
-  { id: "equity", label: "Equity", hint: "Price, vol, RSI", Icon: Table2 },
+  { id: "equity", label: "Equity", hint: "Closes & universe", Icon: Table2 },
   { id: "sector", label: "Sector", hint: "Rotation & heat", Icon: LayoutList },
   { id: "fno", label: "F&O", hint: "OI & PCR", Icon: Layers },
   { id: "alerts", label: "Alerts", hint: "Flags & swings", Icon: Bell },
@@ -463,14 +493,21 @@ export function DeskBoard({
           </div>
         ) : null}
         {group === "equity" ? (
-          <UniverseTable
-            key={data.universe}
-            rows={data.stocks}
-            watch={watch}
-            onToggleWatch={onToggleWatch}
-            onOpen={onOpen}
-            embedded
-          />
+          <div className="space-y-6">
+            <Block title="Closes">
+              <CloseTape rows={data.stocks} onOpen={onOpen} />
+            </Block>
+            <Block title="Universe">
+              <UniverseTable
+                key={data.universe}
+                rows={data.stocks}
+                watch={watch}
+                onToggleWatch={onToggleWatch}
+                onOpen={onOpen}
+                embedded
+              />
+            </Block>
+          </div>
         ) : null}
         {group === "sector" ? (
           <div className="space-y-6">

@@ -63,10 +63,9 @@ type ColId =
   | "pos52" | "high52" | "low52" | "belowH" | "aboveL" | "s2"
   | "earnDays" | "prevEarn" | "earnDay" | "nextEarn" | "setups";
 
-type Preset = "closes" | "core" | "tape" | "structure" | "flow" | "earnings" | "all";
+type Preset = "core" | "tape" | "structure" | "flow" | "earnings" | "all";
 
 const PRESET_COLS: Record<Preset, Set<ColId> | "*"> = {
-  closes: new Set(["watch", "stock", "d1", "cmp"]),
   core: new Set([
     "watch",
     "stock",
@@ -96,7 +95,6 @@ const PRESET_COLS: Record<Preset, Set<ColId> | "*"> = {
 };
 
 const PRESET_LABEL: Record<Preset, string> = {
-  closes: "Closes",
   core: "Desk",
   tape: "Tape",
   structure: "Structure",
@@ -164,7 +162,6 @@ const COLS: { id: ColId; label: string }[] = [
 ];
 
 const WIDTH: Record<Preset, string> = {
-  closes: "min-w-[640px]",
   core: "min-w-[1760px]",
   tape: "min-w-[1880px]",
   structure: "min-w-[1580px]",
@@ -215,10 +212,7 @@ export function UniverseTable({
   useEffect(() => {
     try {
       const saved = localStorage.getItem("imd-universe-preset");
-      if (saved && saved in PRESET_LABEL) setPreset(saved as Preset);
-      else if (localStorage.getItem("imd-desk-equity") === "closes" || localStorage.getItem("imd-desk-pane") === "closes") {
-        setPreset("closes");
-      }
+      if (saved && saved !== "closes" && saved in PRESET_LABEL) setPreset(saved as Preset);
     } catch {
       // ignore
     }
@@ -404,7 +398,7 @@ export function UniverseTable({
           {sector !== "all" ? ` · ${sector}` : ""}
         </span>
         <span className="flex flex-wrap items-center gap-1.5">
-          {(["closes", "core", "tape", "structure", "flow", "earnings", "all"] as const).map((p) => (
+          {(["core", "tape", "structure", "flow", "earnings", "all"] as const).map((p) => (
             <button
               key={p}
               type="button"
