@@ -143,6 +143,10 @@ export function classifyChips(row: StockRow, asOf: string): FoDayChip[] {
         tone,
       });
     }
+    const lastChip = chips[chips.length - 1];
+    if (lastChip && row.oiBuild !== "neutral") {
+      lastChip.tone = row.oiBuild;
+    }
     return chips.slice(-CHIP_WINDOW);
   }
 
@@ -173,12 +177,14 @@ function isUpTone(tone: FoChipTone): boolean {
 }
 
 function trailingKindDays(chips: FoDayChip[], kind: FoBuildKind): number {
-  const last = chips[chips.length - 1];
-  if (!last || last.tone !== kind) return 0;
   const down = isDownTone(kind);
+  let i = chips.length - 1;
+  while (i >= 0 && chips[i].tone === "neutral") i--;
+  if (i < 0 || chips[i].tone !== kind) return 0;
   let n = 0;
-  for (let i = chips.length - 1; i >= 0; i--) {
+  for (; i >= 0; i--) {
     const tone = chips[i].tone;
+    if (tone === "neutral") continue;
     if (down ? isDownTone(tone) : isUpTone(tone)) n++;
     else break;
   }
