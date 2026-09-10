@@ -28,6 +28,10 @@ export interface FoBuildupStreak {
   days: number;
   pxPct: number;
   oiPct: number;
+  atmIv: number;
+  expectedMovePct: number;
+  futPremiumPct: number;
+  rv20: number;
   chips: FoDayChip[];
 }
 
@@ -213,6 +217,10 @@ export function buildupStreaks(
       days,
       pxPct: row.change1d,
       oiPct: oiChangePct(row.fo),
+      atmIv: row.fo?.atmIv ?? 0,
+      expectedMovePct: row.fo?.expectedMovePct ?? 0,
+      futPremiumPct: row.fo?.futPremiumPct ?? 0,
+      rv20: row.rv20,
       chips,
     });
   }

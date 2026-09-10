@@ -245,6 +245,8 @@ function StreakTape({
                   {pxLabel} {signed(s.pxPct)}%
                   <br />
                   OI {signed(s.oiPct)}%
+                  <br />
+                  IV {s.atmIv.toFixed(0)}% · move {s.expectedMovePct.toFixed(1)}%
                 </p>
               </div>
             </button>

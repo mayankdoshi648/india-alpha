@@ -110,11 +110,45 @@ export async function nseFiiDii(): Promise<FlowDay[]> {
 export async function nseOptionChain(symbol: string): Promise<{
   spot: number;
   expiry: string;
-  strikes: { strike: number; callOi: number; putOi: number; callIv: number; putIv: number }[];
+  expiryDates: string[];
+  strikes: {
+    strike: number;
+    callOi: number;
+    putOi: number;
+    callIv: number;
+    putIv: number;
+    callLtp?: number;
+    putLtp?: number;
+    callOiChg?: number;
+    putOiChg?: number;
+  }[];
 }> {
-  return nseChain(`/api/option-chain-v3?type=Indices&symbol=${encodeURIComponent(symbol)}`).catch(() =>
-    nseChain(`/api/option-chain-indices?symbol=${encodeURIComponent(symbol)}`),
-  );
+  return nseIndexChain(symbol, 0);
+}
+
+export async function nseIndexChain(symbol: string, expiryIndex = 0) {
+  const paths = [
+    `/api/option-chain-v3?type=Indices&symbol=${encodeURIComponent(symbol)}`,
+    `/api/option-chain-indices?symbol=${encodeURIComponent(symbol)}`,
+  ];
+  try {
+    return await nseChain(paths[0], expiryIndex);
+  } catch {
+    return nseChain(paths[1], expiryIndex);
+  }
+}
+
+export async function nseFoBanList(): Promise<string[]> {
+  const q = encodeURIComponent("SECURITIES IN F&O BAN");
+  try {
+    const json = await nseGetFirst<{ data?: { symbol?: string }[] }>([
+      `/api/equity-stock-indices?index=${q}`,
+      `/api/equity-stockIndices?index=${q}`,
+    ]);
+    return (json.data ?? []).map((r) => String(r.symbol ?? "").toUpperCase()).filter(Boolean);
+  } catch {
+    return [];
+  }
 }
 
 export async function nseEquityOptionChain(symbol: string): Promise<{
@@ -137,9 +171,13 @@ export async function nseEquityOptionChain(symbol: string): Promise<{
   );
 }
 
-async function nseChain(path: string): Promise<{
+async function nseChain(
+  path: string,
+  expiryIndex = 0,
+): Promise<{
   spot: number;
   expiry: string;
+  expiryDates: string[];
   strikes: {
     strike: number;
     callOi: number;
@@ -174,7 +212,8 @@ async function nseChain(path: string): Promise<{
       }[];
     };
   }>(path);
-  const expiry = json.records?.expiryDates?.[0] ?? "";
+  const expiryDates = json.records?.expiryDates ?? [];
+  const expiry = expiryDates[expiryIndex] ?? expiryDates[0] ?? "";
   const spot = json.records?.underlyingValue ?? 0;
   const rows = (json.records?.data ?? []).filter((d) => !expiry || d.expiryDate === expiry);
   const byStrike = new Map<
@@ -215,7 +254,7 @@ async function nseChain(path: string): Promise<{
   }
   const strikes = [...byStrike.values()];
   if (!strikes.length) throw new Error(`NSE ${path} empty`);
-  return { spot, expiry, strikes };
+  return { spot, expiry, expiryDates, strikes };
 }
 
 export async function nseChart(symbol: string): Promise<OhlcBar[]> {

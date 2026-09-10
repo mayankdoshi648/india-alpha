@@ -180,6 +180,39 @@ export interface DerivativesRadar {
   ivSkew: number;
 }
 
+export interface FoIndexBook {
+  symbol: string;
+  label: string;
+  source: DataSource;
+  spot: number;
+  expiry: string;
+  pcr: number;
+  maxPain: number;
+  maxPainDistancePct: number;
+  callOi: number;
+  putOi: number;
+  callWall: number;
+  putWall: number;
+  ladder: OptionStrike[];
+}
+
+export interface FoParticipantRow {
+  label: string;
+  longOi: number;
+  shortOi: number;
+  net: number;
+}
+
+export interface FoExtraPayload {
+  asOf: string;
+  bankNifty: FoIndexBook | null;
+  niftyNext: FoIndexBook | null;
+  ban: string[];
+  participants: FoParticipantRow[];
+  participantNote: string;
+  source: DataSource;
+}
+
 export interface BreadthCircle {
   period: number;
   label: string;
