@@ -50,7 +50,7 @@ type ColId =
 type Preset = "core" | "tape" | "structure" | "flow" | "earnings" | "all";
 
 const PRESET_COLS: Record<Preset, Set<ColId> | "*"> = {
-  core: new Set(["watch", "stock", "n50", "sector", "quad", "cmp", "d1", "pcr", "w1", "rsi", "volx", "stack", "vs20", "pos52", "s2", "setups"]),
+  core: new Set(["watch", "stock", "d1", "cmp"]),
   tape: new Set(["watch", "stock", "n50", "sector", "quad", "cmp", "dayH", "dayL", "range", "d1", "w1", "m1", "m3", "streak", "beta", "rsi", "spark", "volx", "gap"]),
   structure: new Set(["watch", "stock", "sector", "cmp", "emas", "stack", "weekly", "days20", "vs20", "vs50", "vs200", "pivot", "cross", "pos52", "high52", "low52", "s2"]),
   flow: new Set(["watch", "stock", "sector", "cmp", "d1", "vol", "avgVol", "turn", "volx", "atr", "rv", "cmf", "vwap", "deliv", "oi", "pcr", "atmIv", "futPrem", "rs"]),
