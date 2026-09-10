@@ -22,13 +22,11 @@ import { Bell, Landmark, Layers, LayoutList, Table2 } from "lucide-react";
 function Pane({
   id,
   title,
-  extra,
   children,
   className,
 }: {
   id?: string;
   title: string;
-  extra?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
 }) {
@@ -40,10 +38,9 @@ function Pane({
         className,
       )}
     >
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-[#121b2c] px-3 py-2">
-        <h2 className="text-[11px] font-semibold tracking-[0.16em] text-slate-400 uppercase">{title}</h2>
-        {extra}
-      </div>
+      <h2 className="shrink-0 border-b border-white/8 bg-[#121b2c] px-3 py-2 text-[11px] font-semibold tracking-[0.16em] text-slate-400 uppercase">
+        {title}
+      </h2>
       <div className="p-3 pb-8">{children}</div>
     </section>
   );
@@ -151,36 +148,6 @@ function heat(chg: number) {
   if (chg > -0.5) return "bg-rose-500/25 text-rose-100";
   if (chg > -2) return "bg-rose-500/70 text-white";
   return "bg-rose-600 text-white";
-}
-
-function CloseTape({ rows, onOpen }: { rows: StockRow[]; onOpen: (s: string) => void }) {
-  const sorted = [...rows].sort((a, b) => b.change1d - a.change1d);
-  return (
-    <div id="close-tape" className="min-w-0">
-      <div className="grid grid-cols-[minmax(0,1fr)_5rem_6.5rem] gap-x-2 bg-[#152033] px-1 py-2 text-[11px] tracking-wide text-slate-400 uppercase">
-        <div className="font-medium">Stock</div>
-        <div className="text-right font-medium">1D %</div>
-        <div className="text-right font-medium">Price</div>
-      </div>
-      {sorted.map((r) => (
-        <button
-          key={r.symbol}
-          type="button"
-          className="grid w-full grid-cols-[minmax(0,1fr)_5rem_6.5rem] gap-x-2 border-t border-white/8 px-1 py-2 text-left hover:bg-white/5"
-          onClick={() => onOpen(r.symbol)}
-        >
-          <div className="min-w-0">
-            <p className="truncate font-mono text-[13px] font-semibold text-white">{r.symbol}</p>
-            <p className="truncate text-[11px] text-slate-500">{r.name}</p>
-          </div>
-          <div className="flex items-center justify-end whitespace-nowrap">
-            <Chg value={r.change1d} icon={false} size="md" />
-          </div>
-          <p className="self-center text-right font-mono text-[15px] text-white tabular-nums">{inr(r.cmp)}</p>
-        </button>
-      ))}
-    </div>
-  );
 }
 
 function Mosaic({ rows, onOpen }: { rows: StockRow[]; onOpen: (s: string) => void }) {
@@ -378,7 +345,6 @@ function BreadthBars({ gauges }: { gauges: BreadthCircle[] }) {
 }
 
 type DeskGroup = "indices" | "equity" | "sector" | "fno" | "alerts";
-type EquityView = "universe" | "closes";
 
 const DESK_NAV: {
   id: DeskGroup;
@@ -387,7 +353,7 @@ const DESK_NAV: {
   Icon: typeof Landmark;
 }[] = [
   { id: "indices", label: "Indices", hint: "Tiles & breadth", Icon: Landmark },
-  { id: "equity", label: "Equity", hint: "Universe & closes", Icon: Table2 },
+  { id: "equity", label: "Equity", hint: "Price, vol, RSI", Icon: Table2 },
   { id: "sector", label: "Sector", hint: "Rotation & heat", Icon: LayoutList },
   { id: "fno", label: "F&O", hint: "OI & PCR", Icon: Layers },
   { id: "alerts", label: "Alerts", hint: "Flags & swings", Icon: Bell },
@@ -421,17 +387,6 @@ function readDeskGroup(): DeskGroup {
   return "equity";
 }
 
-function readEquityView(): EquityView {
-  try {
-    const saved = localStorage.getItem("imd-desk-equity");
-    if (saved === "closes" || saved === "universe") return saved;
-    if (localStorage.getItem("imd-desk-pane") === "closes") return "closes";
-  } catch {
-    // ignore
-  }
-  return "universe";
-}
-
 export function DeskBoard({
   data,
   watch,
@@ -444,14 +399,12 @@ export function DeskBoard({
   onOpen: (symbol: string) => void;
 }) {
   const [group, setGroup] = useState<DeskGroup>("equity");
-  const [equity, setEquity] = useState<EquityView>("universe");
   const gainers = [...data.stocks].sort((a, b) => b.change1d - a.change1d).slice(0, 5);
   const losers = [...data.stocks].sort((a, b) => a.change1d - b.change1d).slice(0, 5);
   const active = DESK_NAV.find((n) => n.id === group) ?? DESK_NAV[1];
 
   useEffect(() => {
     setGroup(readDeskGroup());
-    setEquity(readEquityView());
   }, []);
 
   const pickGroup = (id: DeskGroup) => {
@@ -459,16 +412,6 @@ export function DeskBoard({
     document.getElementById("desk-scroll")?.scrollTo({ top: 0 });
     try {
       localStorage.setItem("imd-desk-group", id);
-    } catch {
-      // ignore
-    }
-  };
-
-  const pickEquity = (id: EquityView) => {
-    setEquity(id);
-    document.getElementById("desk-scroll")?.scrollTo({ top: 0 });
-    try {
-      localStorage.setItem("imd-desk-equity", id);
     } catch {
       // ignore
     }
@@ -505,38 +448,7 @@ export function DeskBoard({
           );
         })}
       </nav>
-      <Pane
-        title={active.label}
-        className="min-w-0 flex-1"
-        extra={
-          group === "equity" ? (
-            <div className="flex gap-1">
-              <button
-                type="button"
-                id="desk-nav-universe"
-                onClick={() => pickEquity("universe")}
-                className={cn(
-                  "rounded-md px-2 py-1 text-[11px]",
-                  equity === "universe" ? "bg-cyan-400/15 text-cyan-100" : "text-slate-500 hover:text-slate-200",
-                )}
-              >
-                Universe
-              </button>
-              <button
-                type="button"
-                id="desk-nav-closes"
-                onClick={() => pickEquity("closes")}
-                className={cn(
-                  "rounded-md px-2 py-1 text-[11px]",
-                  equity === "closes" ? "bg-cyan-400/15 text-cyan-100" : "text-slate-500 hover:text-slate-200",
-                )}
-              >
-                Closes
-              </button>
-            </div>
-          ) : null
-        }
-      >
+      <Pane title={active.label} className="min-w-0 flex-1">
         {group === "indices" ? (
           <div className="space-y-6">
             <Block title="Index tiles">
@@ -550,7 +462,7 @@ export function DeskBoard({
             </Block>
           </div>
         ) : null}
-        {group === "equity" && equity === "universe" ? (
+        {group === "equity" ? (
           <UniverseTable
             key={data.universe}
             rows={data.stocks}
@@ -560,7 +472,6 @@ export function DeskBoard({
             embedded
           />
         ) : null}
-        {group === "equity" && equity === "closes" ? <CloseTape rows={data.stocks} onOpen={onOpen} /> : null}
         {group === "sector" ? (
           <div className="space-y-6">
             <Block title="Rotation">
