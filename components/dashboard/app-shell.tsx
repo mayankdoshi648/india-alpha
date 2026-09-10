@@ -501,12 +501,14 @@ export function MarketDesk({ view }: { view: DeskView }) {
                 </section>
               </div>
             ) : (
-              <DeskBoard
-                data={data}
-                watch={watchSet}
-                onToggleWatch={toggleWatch}
-                onOpen={setOpenSymbol}
-              />
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                <DeskBoard
+                  data={data}
+                  watch={watchSet}
+                  onToggleWatch={toggleWatch}
+                  onOpen={setOpenSymbol}
+                />
+              </div>
             )}
           </DeskErrorBoundary>
         ) : !loading && error ? (
