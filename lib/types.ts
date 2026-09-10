@@ -311,6 +311,7 @@ export interface StockFo {
   futPremiumPct: number;
   callOi: number;
   putOi: number;
+  oiChgPct: number;
   oiBuild: OiBuild;
   ladder: OptionStrike[];
 }

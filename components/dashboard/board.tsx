@@ -16,6 +16,7 @@ import { SectorMatrix } from "@/components/dashboard/sector-matrix";
 import { UniverseTable } from "@/components/dashboard/universe-table";
 import { DeskErrorBoundary } from "@/components/dashboard/error-boundary";
 import { StockFoList } from "@/components/dashboard/stock-fo";
+import { FoRadar } from "@/components/dashboard/fo-radar";
 import { cn } from "@/lib/utils";
 import { Bell, Landmark, Layers, LayoutList, Table2 } from "lucide-react";
 
@@ -276,49 +277,62 @@ function SetupList({ hits, onPick }: { hits: PatternHit[]; onPick: (s: string) =
 function FoWatch({
   data,
   stocks,
+  asOf,
+  niftyChange,
   onOpen,
 }: {
   data: DerivativesRadar;
   stocks: StockRow[];
+  asOf: string;
+  niftyChange: number;
   onOpen: (s: string) => void;
 }) {
   const maxOi = Math.max(1, ...(data.ladder ?? []).map((s) => Math.max(s.callOi, s.putOi)));
   const rows = (data.ladder ?? []).slice(0, 7);
   return (
-    <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-2 text-sm">
-        <div>
-          <p className="text-[11px] text-slate-400">Max pain</p>
-          <p className="font-mono tabular-nums text-white">{inr(data.maxPain, 0)}</p>
-        </div>
-        <div>
-          <p className="text-[11px] text-slate-400">Nifty PCR</p>
-          <p className="font-mono tabular-nums text-white">{data.niftyPcr.toFixed(2)}</p>
-        </div>
-      </div>
-      <p className="text-[11px] text-slate-400">
-        Call wall {inr(data.callWall, 0)} · put wall {inr(data.putWall, 0)}
-      </p>
-      <div className="space-y-0.5">
-        {rows.map((s) => {
-          const atm = Math.abs(s.strike - data.spot) <= 25;
-          return (
-            <div
-              key={s.strike}
-              className={cn("grid grid-cols-[1fr_52px_1fr] items-center gap-1 text-[11px]", atm && "rounded bg-sky-400/10")}
-            >
-              <div className="h-1.5 overflow-hidden rounded bg-white/10">
-                <div className="ml-auto h-full bg-rose-400" style={{ width: `${(s.callOi / maxOi) * 100}%` }} />
-              </div>
-              <span className={cn("text-center font-mono tabular-nums", atm && "text-sky-200")}>{inr(s.strike, 0)}</span>
-              <div className="h-1.5 overflow-hidden rounded bg-white/10">
-                <div className="h-full bg-emerald-400" style={{ width: `${(s.putOi / maxOi) * 100}%` }} />
-              </div>
+    <div className="space-y-6">
+      <DeskErrorBoundary>
+        <FoRadar rows={stocks} asOf={asOf} niftyChange={niftyChange} onOpen={onOpen} />
+      </DeskErrorBoundary>
+      <Block title="Nifty OI">
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>
+              <p className="text-[11px] text-slate-400">Max pain</p>
+              <p className="font-mono tabular-nums text-white">{inr(data.maxPain, 0)}</p>
             </div>
-          );
-        })}
-      </div>
-      <StockFoList rows={stocks} onOpen={onOpen} />
+            <div>
+              <p className="text-[11px] text-slate-400">Nifty PCR</p>
+              <p className="font-mono tabular-nums text-white">{data.niftyPcr.toFixed(2)}</p>
+            </div>
+          </div>
+          <p className="text-[11px] text-slate-400">
+            Call wall {inr(data.callWall, 0)} · put wall {inr(data.putWall, 0)}
+          </p>
+          <div className="space-y-0.5">
+            {rows.map((s) => {
+              const atm = Math.abs(s.strike - data.spot) <= 25;
+              return (
+                <div
+                  key={s.strike}
+                  className={cn("grid grid-cols-[1fr_52px_1fr] items-center gap-1 text-[11px]", atm && "rounded bg-sky-400/10")}
+                >
+                  <div className="h-1.5 overflow-hidden rounded bg-white/10">
+                    <div className="ml-auto h-full bg-rose-400" style={{ width: `${(s.callOi / maxOi) * 100}%` }} />
+                  </div>
+                  <span className={cn("text-center font-mono tabular-nums", atm && "text-sky-200")}>{inr(s.strike, 0)}</span>
+                  <div className="h-1.5 overflow-hidden rounded bg-white/10">
+                    <div className="h-full bg-emerald-400" style={{ width: `${(s.putOi / maxOi) * 100}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </Block>
+      <Block title="Stock F&O">
+        <StockFoList rows={stocks} onOpen={onOpen} />
+      </Block>
     </div>
   );
 }
@@ -355,7 +369,7 @@ const DESK_NAV: {
   { id: "indices", label: "Indices", hint: "Tiles & breadth", Icon: Landmark },
   { id: "equity", label: "Equity", hint: "Price, vol, RSI", Icon: Table2 },
   { id: "sector", label: "Sector", hint: "Rotation & heat", Icon: LayoutList },
-  { id: "fno", label: "F&O", hint: "OI & PCR", Icon: Layers },
+  { id: "fno", label: "F&O", hint: "Streaks & OI", Icon: Layers },
   { id: "alerts", label: "Alerts", hint: "Flags & swings", Icon: Bell },
 ];
 
@@ -488,7 +502,15 @@ export function DeskBoard({
             </Block>
           </div>
         ) : null}
-        {group === "fno" ? <FoWatch data={data.derivatives} stocks={data.stocks} onOpen={onOpen} /> : null}
+        {group === "fno" ? (
+          <FoWatch
+            data={data.derivatives}
+            stocks={data.stocks}
+            asOf={data.asOf}
+            niftyChange={data.indices.find((i) => i.id === "nifty")?.changePct ?? 0}
+            onOpen={onOpen}
+          />
+        ) : null}
         {group === "alerts" ? (
           <div className="space-y-6">
             <Block title="Desk flags">

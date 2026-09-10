@@ -77,7 +77,7 @@ import type {
 import { overlayLast } from "@/lib/ohlc";
 import { indiaMarketDate } from "@/lib/session";
 
-const CACHE_VER = 21;
+const CACHE_VER = 22;
 const cache = new Map<string, { at: number; value: DashboardSnapshot }>();
 
 export type SnapshotOpts = {

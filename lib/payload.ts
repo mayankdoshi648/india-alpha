@@ -5,7 +5,7 @@ export function withoutCharts(snap: DashboardSnapshot): DashboardSnapshot {
     ...snap,
     stocks: snap.stocks.map((s) => ({
       ...s,
-      chart: [],
+      chart: s.fo?.listed ? s.chart.slice(-11) : [],
       fo: s.fo ? { ...s.fo, ladder: [] } : null,
     })),
   };

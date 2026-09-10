@@ -67,6 +67,7 @@ export function foFromChain(input: {
       : round((atmIv / 16) * 0.8, 2);
   const callChg = strikes.reduce((s, x) => s + (x.callOiChg || 0), 0);
   const putChg = strikes.reduce((s, x) => s + (x.putOiChg || 0), 0);
+  const oiDen = callOi + putOi;
   return {
     listed: true,
     symbol: input.symbol,
@@ -83,6 +84,7 @@ export function foFromChain(input: {
     futPremiumPct: input.futPremiumPct,
     callOi,
     putOi,
+    oiChgPct: oiDen ? round(((callChg + putChg) / oiDen) * 100, 2) : 0,
     oiBuild: oiBuildFrom(input.change1d, callChg, putChg, pcr),
     ladder,
   };
