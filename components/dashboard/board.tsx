@@ -17,26 +17,18 @@ import { UniverseTable } from "@/components/dashboard/universe-table";
 import { DeskErrorBoundary } from "@/components/dashboard/error-boundary";
 import { StockFoList } from "@/components/dashboard/stock-fo";
 import { cn } from "@/lib/utils";
-import {
-  Activity,
-  Bell,
-  LayoutGrid,
-  LayoutList,
-  Landmark,
-  Layers,
-  Percent,
-  Table2,
-  TrendingUp,
-} from "lucide-react";
+import { Bell, Landmark, Layers, LayoutList, Table2 } from "lucide-react";
 
 function Pane({
   id,
   title,
+  extra,
   children,
   className,
 }: {
   id?: string;
   title: string;
+  extra?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
 }) {
@@ -48,11 +40,21 @@ function Pane({
         className,
       )}
     >
-      <h2 className="shrink-0 border-b border-white/8 bg-[#121b2c] px-3 py-2 text-[11px] font-semibold tracking-[0.16em] text-slate-400 uppercase">
-        {title}
-      </h2>
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-[#121b2c] px-3 py-2">
+        <h2 className="text-[11px] font-semibold tracking-[0.16em] text-slate-400 uppercase">{title}</h2>
+        {extra}
+      </div>
       <div className="p-3 pb-8">{children}</div>
     </section>
+  );
+}
+
+function Block({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] font-medium tracking-[0.14em] text-slate-500 uppercase">{title}</p>
+      {children}
+    </div>
   );
 }
 
@@ -375,45 +377,59 @@ function BreadthBars({ gauges }: { gauges: BreadthCircle[] }) {
   );
 }
 
-type DeskPane =
-  | "closes"
-  | "universe"
-  | "heat"
-  | "sectors"
-  | "indices"
-  | "alerts"
-  | "swings"
-  | "fno"
-  | "breadth";
+type DeskGroup = "indices" | "equity" | "sector" | "fno" | "alerts";
+type EquityView = "universe" | "closes";
 
 const DESK_NAV: {
-  id: DeskPane;
+  id: DeskGroup;
   label: string;
   hint: string;
-  Icon: typeof Percent;
+  Icon: typeof Landmark;
 }[] = [
-  { id: "closes", label: "Closes", hint: "Price & 1D %", Icon: Percent },
-  { id: "universe", label: "Universe", hint: "Price, vol, RSI", Icon: Table2 },
-  { id: "heat", label: "Heat", hint: "1D mosaic", Icon: LayoutGrid },
-  { id: "sectors", label: "Sectors", hint: "Rotation", Icon: LayoutList },
-  { id: "indices", label: "Indices", hint: "Top tiles", Icon: Landmark },
-  { id: "alerts", label: "Alerts", hint: "Desk flags", Icon: Bell },
-  { id: "swings", label: "Swings", hint: "VCP / BO", Icon: TrendingUp },
+  { id: "indices", label: "Indices", hint: "Tiles & breadth", Icon: Landmark },
+  { id: "equity", label: "Equity", hint: "Universe & closes", Icon: Table2 },
+  { id: "sector", label: "Sector", hint: "Rotation & heat", Icon: LayoutList },
   { id: "fno", label: "F&O", hint: "OI & PCR", Icon: Layers },
-  { id: "breadth", label: "Breadth", hint: "EMA %", Icon: Activity },
+  { id: "alerts", label: "Alerts", hint: "Flags & swings", Icon: Bell },
 ];
 
-const OLD_TOOL_PANES = new Set(["volume", "rsi", "earnings", "gaps"]);
+const PANE_TO_GROUP: Record<string, DeskGroup> = {
+  closes: "equity",
+  universe: "equity",
+  volume: "equity",
+  rsi: "equity",
+  earnings: "equity",
+  gaps: "equity",
+  heat: "sector",
+  sectors: "sector",
+  indices: "indices",
+  breadth: "indices",
+  fno: "fno",
+  alerts: "alerts",
+  swings: "alerts",
+};
 
-function readDeskPane(): DeskPane {
+function readDeskGroup(): DeskGroup {
   try {
-    const saved = localStorage.getItem("imd-desk-pane");
-    if (saved && OLD_TOOL_PANES.has(saved)) return "universe";
-    if (DESK_NAV.some((n) => n.id === saved)) return saved as DeskPane;
+    const group = localStorage.getItem("imd-desk-group");
+    if (DESK_NAV.some((n) => n.id === group)) return group as DeskGroup;
+    const pane = localStorage.getItem("imd-desk-pane");
+    if (pane && PANE_TO_GROUP[pane]) return PANE_TO_GROUP[pane];
   } catch {
     // ignore
   }
-  return "closes";
+  return "equity";
+}
+
+function readEquityView(): EquityView {
+  try {
+    const saved = localStorage.getItem("imd-desk-equity");
+    if (saved === "closes" || saved === "universe") return saved;
+    if (localStorage.getItem("imd-desk-pane") === "closes") return "closes";
+  } catch {
+    // ignore
+  }
+  return "universe";
 }
 
 export function DeskBoard({
@@ -427,20 +443,32 @@ export function DeskBoard({
   onToggleWatch: (symbol: string) => void;
   onOpen: (symbol: string) => void;
 }) {
-  const [pane, setPane] = useState<DeskPane>("closes");
+  const [group, setGroup] = useState<DeskGroup>("equity");
+  const [equity, setEquity] = useState<EquityView>("universe");
   const gainers = [...data.stocks].sort((a, b) => b.change1d - a.change1d).slice(0, 5);
   const losers = [...data.stocks].sort((a, b) => a.change1d - b.change1d).slice(0, 5);
-  const active = DESK_NAV.find((n) => n.id === pane) ?? DESK_NAV[0];
+  const active = DESK_NAV.find((n) => n.id === group) ?? DESK_NAV[1];
 
   useEffect(() => {
-    setPane(readDeskPane());
+    setGroup(readDeskGroup());
+    setEquity(readEquityView());
   }, []);
 
-  const pick = (id: DeskPane) => {
-    setPane(id);
+  const pickGroup = (id: DeskGroup) => {
+    setGroup(id);
     document.getElementById("desk-scroll")?.scrollTo({ top: 0 });
     try {
-      localStorage.setItem("imd-desk-pane", id);
+      localStorage.setItem("imd-desk-group", id);
+    } catch {
+      // ignore
+    }
+  };
+
+  const pickEquity = (id: EquityView) => {
+    setEquity(id);
+    document.getElementById("desk-scroll")?.scrollTo({ top: 0 });
+    try {
+      localStorage.setItem("imd-desk-equity", id);
     } catch {
       // ignore
     }
@@ -454,7 +482,7 @@ export function DeskBoard({
         aria-label="Desk sections"
       >
         {DESK_NAV.map((item) => {
-          const on = pane === item.id;
+          const on = group === item.id;
           return (
             <button
               key={item.id}
@@ -462,7 +490,7 @@ export function DeskBoard({
               id={`desk-nav-${item.id}`}
               aria-label={item.label}
               title={`${item.label} · ${item.hint}`}
-              onClick={() => pick(item.id)}
+              onClick={() => pickGroup(item.id)}
               className={cn(
                 "flex items-center justify-center gap-2 rounded-lg px-2 py-1.5 text-left sm:justify-start",
                 on ? "bg-cyan-400/15 text-cyan-100" : "text-slate-400 hover:bg-white/5 hover:text-slate-200",
@@ -477,9 +505,52 @@ export function DeskBoard({
           );
         })}
       </nav>
-      <Pane title={active.label} className="min-w-0 flex-1">
-        {pane === "closes" ? <CloseTape rows={data.stocks} onOpen={onOpen} /> : null}
-        {pane === "universe" ? (
+      <Pane
+        title={active.label}
+        className="min-w-0 flex-1"
+        extra={
+          group === "equity" ? (
+            <div className="flex gap-1">
+              <button
+                type="button"
+                id="desk-nav-universe"
+                onClick={() => pickEquity("universe")}
+                className={cn(
+                  "rounded-md px-2 py-1 text-[11px]",
+                  equity === "universe" ? "bg-cyan-400/15 text-cyan-100" : "text-slate-500 hover:text-slate-200",
+                )}
+              >
+                Universe
+              </button>
+              <button
+                type="button"
+                id="desk-nav-closes"
+                onClick={() => pickEquity("closes")}
+                className={cn(
+                  "rounded-md px-2 py-1 text-[11px]",
+                  equity === "closes" ? "bg-cyan-400/15 text-cyan-100" : "text-slate-500 hover:text-slate-200",
+                )}
+              >
+                Closes
+              </button>
+            </div>
+          ) : null
+        }
+      >
+        {group === "indices" ? (
+          <div className="space-y-6">
+            <Block title="Index tiles">
+              <WatchStrip data={data} />
+            </Block>
+            <Block title="Index tape">
+              <IndexList tiles={data.indices} />
+            </Block>
+            <Block title="Breadth">
+              <BreadthBars gauges={data.breadthGauges} />
+            </Block>
+          </div>
+        ) : null}
+        {group === "equity" && equity === "universe" ? (
           <UniverseTable
             key={data.universe}
             rows={data.stocks}
@@ -489,30 +560,34 @@ export function DeskBoard({
             embedded
           />
         ) : null}
-        {pane === "heat" ? (
-          <div className="space-y-4">
-            <Mosaic rows={data.stocks} onOpen={onOpen} />
-            <div className="grid grid-cols-2 gap-3">
-              <MoveCol title="Up" rows={gainers} onOpen={onOpen} metric={(r) => <Chg value={r.change1d} />} />
-              <MoveCol title="Down" rows={losers} onOpen={onOpen} metric={(r) => <Chg value={r.change1d} />} />
-            </div>
+        {group === "equity" && equity === "closes" ? <CloseTape rows={data.stocks} onOpen={onOpen} /> : null}
+        {group === "sector" ? (
+          <div className="space-y-6">
+            <Block title="Rotation">
+              <DeskErrorBoundary>
+                <SectorMatrix sectors={data.sectors} heatmap={data.heatmap} compact heading={false} onOpen={onOpen} />
+              </DeskErrorBoundary>
+            </Block>
+            <Block title="Heat">
+              <Mosaic rows={data.stocks} onOpen={onOpen} />
+              <div className="grid grid-cols-2 gap-3">
+                <MoveCol title="Up" rows={gainers} onOpen={onOpen} metric={(r) => <Chg value={r.change1d} />} />
+                <MoveCol title="Down" rows={losers} onOpen={onOpen} metric={(r) => <Chg value={r.change1d} />} />
+              </div>
+            </Block>
           </div>
         ) : null}
-        {pane === "sectors" ? (
-          <DeskErrorBoundary>
-            <SectorMatrix sectors={data.sectors} heatmap={data.heatmap} compact heading={false} onOpen={onOpen} />
-          </DeskErrorBoundary>
-        ) : null}
-        {pane === "indices" ? (
-          <div className="space-y-4">
-            <WatchStrip data={data} />
-            <IndexList tiles={data.indices} />
+        {group === "fno" ? <FoWatch data={data.derivatives} stocks={data.stocks} onOpen={onOpen} /> : null}
+        {group === "alerts" ? (
+          <div className="space-y-6">
+            <Block title="Desk flags">
+              <AlertList alerts={data.alerts ?? []} onPick={onOpen} />
+            </Block>
+            <Block title="Swings">
+              <SetupList hits={data.patterns} onPick={onOpen} />
+            </Block>
           </div>
         ) : null}
-        {pane === "alerts" ? <AlertList alerts={data.alerts ?? []} onPick={onOpen} /> : null}
-        {pane === "swings" ? <SetupList hits={data.patterns} onPick={onOpen} /> : null}
-        {pane === "fno" ? <FoWatch data={data.derivatives} stocks={data.stocks} onOpen={onOpen} /> : null}
-        {pane === "breadth" ? <BreadthBars gauges={data.breadthGauges} /> : null}
       </Pane>
     </div>
   );
