@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { PatternKind, RotationQuadrant, StockRow } from "@/lib/types";
 import { PATTERN_LABEL, PATTERN_TONE, compact, fmtDate, inr } from "@/lib/format";
 import { Chg, EmaPills, Sparkline } from "@/components/dashboard/primitives";
@@ -63,9 +63,10 @@ type ColId =
   | "pos52" | "high52" | "low52" | "belowH" | "aboveL" | "s2"
   | "earnDays" | "prevEarn" | "earnDay" | "nextEarn" | "setups";
 
-type Preset = "core" | "tape" | "structure" | "flow" | "earnings" | "all";
+type Preset = "closes" | "core" | "tape" | "structure" | "flow" | "earnings" | "all";
 
 const PRESET_COLS: Record<Preset, Set<ColId> | "*"> = {
+  closes: new Set(["watch", "stock", "d1", "cmp"]),
   core: new Set([
     "watch",
     "stock",
@@ -95,6 +96,7 @@ const PRESET_COLS: Record<Preset, Set<ColId> | "*"> = {
 };
 
 const PRESET_LABEL: Record<Preset, string> = {
+  closes: "Closes",
   core: "Desk",
   tape: "Tape",
   structure: "Structure",
@@ -162,6 +164,7 @@ const COLS: { id: ColId; label: string }[] = [
 ];
 
 const WIDTH: Record<Preset, string> = {
+  closes: "min-w-[640px]",
   core: "min-w-[1760px]",
   tape: "min-w-[1880px]",
   structure: "min-w-[1580px]",
@@ -208,6 +211,27 @@ export function UniverseTable({
     return cols === "*" || cols.has(id);
   };
   const hide = (id: ColId) => (shownCol(id) ? "" : "hidden");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("imd-universe-preset");
+      if (saved && saved in PRESET_LABEL) setPreset(saved as Preset);
+      else if (localStorage.getItem("imd-desk-equity") === "closes" || localStorage.getItem("imd-desk-pane") === "closes") {
+        setPreset("closes");
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const pickPreset = (p: Preset) => {
+    setPreset(p);
+    try {
+      localStorage.setItem("imd-universe-preset", p);
+    } catch {
+      // ignore
+    }
+  };
 
   const sectors = useMemo(
     () => [...new Set(rows.map((r) => r.sector))].sort(),
@@ -380,11 +404,12 @@ export function UniverseTable({
           {sector !== "all" ? ` · ${sector}` : ""}
         </span>
         <span className="flex flex-wrap items-center gap-1.5">
-          {(["core", "tape", "structure", "flow", "earnings", "all"] as const).map((p) => (
+          {(["closes", "core", "tape", "structure", "flow", "earnings", "all"] as const).map((p) => (
             <button
               key={p}
               type="button"
-              onClick={() => setPreset(p)}
+              id={`universe-preset-${p}`}
+              onClick={() => pickPreset(p)}
               className={cn(
                 "rounded-full border px-2.5 py-1 text-[11px]",
                 preset === p ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-200" : "border-white/10 text-muted-foreground",
