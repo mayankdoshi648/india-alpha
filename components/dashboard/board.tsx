@@ -10,7 +10,7 @@ import type {
   PatternHit,
   StockRow,
 } from "@/lib/types";
-import { PATTERN_LABEL, compact, inr, signed, SWING_STATUS } from "@/lib/format";
+import { PATTERN_LABEL, compact, fmtDate, inr, signed, SWING_STATUS } from "@/lib/format";
 import { Chg, EmaPills, Sparkline } from "@/components/dashboard/primitives";
 import { SectorMatrix } from "@/components/dashboard/sector-matrix";
 import { UniverseTable } from "@/components/dashboard/universe-table";
@@ -20,6 +20,10 @@ import { cn } from "@/lib/utils";
 import {
   Activity,
   Bell,
+  CalendarDays,
+  ChartColumnIncreasing,
+  ChevronsUpDown,
+  Gauge,
   LayoutGrid,
   LayoutList,
   Landmark,
@@ -44,14 +48,14 @@ function Pane({
     <section
       id={id}
       className={cn(
-        "flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-[#121b2c]",
+        "flex min-h-full min-w-0 flex-1 flex-col rounded-xl border border-white/10 bg-[#121b2c]",
         className,
       )}
     >
       <h2 className="shrink-0 border-b border-white/8 px-3 py-2 text-[11px] font-semibold tracking-[0.16em] text-slate-400 uppercase">
         {title}
       </h2>
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-auto p-3">{children}</div>
+      <div className="p-3 pb-8">{children}</div>
     </section>
   );
 }
@@ -177,6 +181,142 @@ function CloseTape({ rows, onOpen }: { rows: StockRow[]; onOpen: (s: string) => 
           <p className="self-center text-right font-mono text-[15px] text-white tabular-nums">{inr(r.cmp)}</p>
         </button>
       ))}
+    </div>
+  );
+}
+
+function ScanList({
+  rows,
+  onOpen,
+  metricLabel,
+  metric,
+}: {
+  rows: StockRow[];
+  onOpen: (s: string) => void;
+  metricLabel: string;
+  metric: (r: StockRow) => React.ReactNode;
+}) {
+  if (!rows.length) return <p className="text-sm text-slate-500">Nothing in this cut.</p>;
+  return (
+    <div className="min-w-0">
+      <div className="sticky top-0 z-10 grid grid-cols-[minmax(0,1fr)_7.5rem_5rem] gap-x-2 bg-[#152033] px-1 py-2 text-[11px] tracking-wide text-slate-400 uppercase">
+        <div className="font-medium">Stock</div>
+        <div className="text-right font-medium">{metricLabel}</div>
+        <div className="text-right font-medium">1D %</div>
+      </div>
+      {rows.map((r) => (
+        <button
+          key={r.symbol}
+          type="button"
+          className="grid w-full grid-cols-[minmax(0,1fr)_7.5rem_5rem] gap-x-2 border-t border-white/8 px-1 py-2 text-left hover:bg-white/5"
+          onClick={() => onOpen(r.symbol)}
+        >
+          <div className="min-w-0">
+            <p className="truncate font-mono text-[13px] font-semibold text-white">{r.symbol}</p>
+            <p className="truncate text-[11px] text-slate-500">{r.name}</p>
+          </div>
+          <div className="flex items-center justify-end text-right">{metric(r)}</div>
+          <div className="flex items-center justify-end">
+            <Chg value={r.change1d} icon={false} size="md" />
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function VolumeTool({ rows, onOpen }: { rows: StockRow[]; onOpen: (s: string) => void }) {
+  const sorted = [...rows].sort((a, b) => b.volSpike - a.volSpike);
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] text-slate-500">Volume versus the 20-day average. Highest spike first.</p>
+      <ScanList
+        rows={sorted}
+        onOpen={onOpen}
+        metricLabel="Vol x"
+        metric={(r) => (
+          <span className="font-mono text-[13px] text-cyan-300 tabular-nums">
+            {r.volSpike.toFixed(2)}x
+            <span className="mt-0.5 block text-[11px] text-slate-500">{compact(r.volume)}</span>
+          </span>
+        )}
+      />
+    </div>
+  );
+}
+
+function RsiTool({ rows, onOpen }: { rows: StockRow[]; onOpen: (s: string) => void }) {
+  const oversold = [...rows].filter((r) => r.rsi <= 40).sort((a, b) => a.rsi - b.rsi);
+  const overbought = [...rows].filter((r) => r.rsi >= 60).sort((a, b) => b.rsi - a.rsi);
+  return (
+    <div className="space-y-5">
+      <div>
+        <p className="mb-2 text-[11px] text-slate-500">Oversold · RSI 40 or below</p>
+        <ScanList
+          rows={oversold}
+          onOpen={onOpen}
+          metricLabel="RSI"
+          metric={(r) => <span className="font-mono text-[13px] text-lime-300 tabular-nums">{r.rsi.toFixed(1)}</span>}
+        />
+      </div>
+      <div>
+        <p className="mb-2 text-[11px] text-slate-500">Overbought · RSI 60 or above</p>
+        <ScanList
+          rows={overbought}
+          onOpen={onOpen}
+          metricLabel="RSI"
+          metric={(r) => <span className="font-mono text-[13px] text-rose-300 tabular-nums">{r.rsi.toFixed(1)}</span>}
+        />
+      </div>
+    </div>
+  );
+}
+
+function EarningsTool({ rows, onOpen }: { rows: StockRow[]; onOpen: (s: string) => void }) {
+  const upcoming = [...rows]
+    .filter((r) => r.daysToEarnings != null)
+    .sort((a, b) => (a.daysToEarnings ?? 99) - (b.daysToEarnings ?? 99));
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] text-slate-500">Next result date on this universe, nearest first.</p>
+      <ScanList
+        rows={upcoming}
+        onOpen={onOpen}
+        metricLabel="In"
+        metric={(r) => (
+          <span className="font-mono text-[13px] text-sky-200 tabular-nums">
+            {r.daysToEarnings === 0 ? "today" : `${r.daysToEarnings}d`}
+            <span className="mt-0.5 block text-[11px] text-slate-500">{fmtDate(r.nextEarningDate)}</span>
+          </span>
+        )}
+      />
+    </div>
+  );
+}
+
+function GapsTool({ rows, onOpen }: { rows: StockRow[]; onOpen: (s: string) => void }) {
+  const up = [...rows].filter((r) => r.gapPct > 0).sort((a, b) => b.gapPct - a.gapPct);
+  const down = [...rows].filter((r) => r.gapPct < 0).sort((a, b) => a.gapPct - b.gapPct);
+  return (
+    <div className="space-y-5">
+      <div>
+        <p className="mb-2 text-[11px] text-slate-500">Gap up versus prior close</p>
+        <ScanList
+          rows={up}
+          onOpen={onOpen}
+          metricLabel="Gap"
+          metric={(r) => <Chg value={r.gapPct} icon={false} size="md" />}
+        />
+      </div>
+      <div>
+        <p className="mb-2 text-[11px] text-slate-500">Gap down versus prior close</p>
+        <ScanList
+          rows={down}
+          onOpen={onOpen}
+          metricLabel="Gap"
+          metric={(r) => <Chg value={r.gapPct} icon={false} size="md" />}
+        />
+      </div>
     </div>
   );
 }
@@ -381,6 +521,10 @@ type DeskPane =
   | "heat"
   | "sectors"
   | "indices"
+  | "volume"
+  | "rsi"
+  | "earnings"
+  | "gaps"
   | "alerts"
   | "swings"
   | "fno"
@@ -397,6 +541,10 @@ const DESK_NAV: {
   { id: "heat", label: "Heat", hint: "1D mosaic", Icon: LayoutGrid },
   { id: "sectors", label: "Sectors", hint: "Rotation", Icon: LayoutList },
   { id: "indices", label: "Indices", hint: "Top tiles", Icon: Landmark },
+  { id: "volume", label: "Volume", hint: "Vol spike", Icon: ChartColumnIncreasing },
+  { id: "rsi", label: "RSI", hint: "OB / OS", Icon: Gauge },
+  { id: "earnings", label: "Earnings", hint: "Next result", Icon: CalendarDays },
+  { id: "gaps", label: "Gaps", hint: "Open vs close", Icon: ChevronsUpDown },
   { id: "alerts", label: "Alerts", hint: "Desk flags", Icon: Bell },
   { id: "swings", label: "Swings", hint: "VCP / BO", Icon: TrendingUp },
   { id: "fno", label: "F&O", hint: "OI & PCR", Icon: Layers },
@@ -435,6 +583,7 @@ export function DeskBoard({
 
   const pick = (id: DeskPane) => {
     setPane(id);
+    document.getElementById("desk-scroll")?.scrollTo({ top: 0 });
     try {
       localStorage.setItem("imd-desk-pane", id);
     } catch {
@@ -443,10 +592,10 @@ export function DeskBoard({
   };
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 gap-2.5">
+    <div className="flex min-h-full items-start gap-2.5">
       <nav
         id="desk-nav"
-        className="flex w-11 shrink-0 flex-col gap-0.5 overflow-y-auto sm:w-44"
+        className="sticky top-0 flex max-h-[calc(100dvh-5rem)] w-11 shrink-0 flex-col gap-0.5 overflow-y-auto self-start sm:w-44"
         aria-label="Desk sections"
       >
         {DESK_NAV.map((item) => {
@@ -473,7 +622,7 @@ export function DeskBoard({
           );
         })}
       </nav>
-      <Pane title={active.label} className="min-h-0 min-w-0 flex-1">
+      <Pane title={active.label} className="min-w-0 flex-1">
         {pane === "closes" ? <CloseTape rows={data.stocks} onOpen={onOpen} /> : null}
         {pane === "universe" ? (
           <UniverseTable
@@ -505,6 +654,10 @@ export function DeskBoard({
             <IndexList tiles={data.indices} />
           </div>
         ) : null}
+        {pane === "volume" ? <VolumeTool rows={data.stocks} onOpen={onOpen} /> : null}
+        {pane === "rsi" ? <RsiTool rows={data.stocks} onOpen={onOpen} /> : null}
+        {pane === "earnings" ? <EarningsTool rows={data.stocks} onOpen={onOpen} /> : null}
+        {pane === "gaps" ? <GapsTool rows={data.stocks} onOpen={onOpen} /> : null}
         {pane === "alerts" ? <AlertList alerts={data.alerts ?? []} onPick={onOpen} /> : null}
         {pane === "swings" ? <SetupList hits={data.patterns} onPick={onOpen} /> : null}
         {pane === "fno" ? <FoWatch data={data.derivatives} stocks={data.stocks} onOpen={onOpen} /> : null}
