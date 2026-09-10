@@ -8,9 +8,9 @@ export default function Error({
   reset: () => void;
 }) {
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-[#070b14] px-6 text-slate-200">
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-background px-6 text-foreground">
       <p className="text-lg font-medium">The desk failed to start.</p>
-      <p className="max-w-md text-center text-sm text-slate-400">{error.message}</p>
+      <p className="max-w-md text-center text-sm text-muted-foreground">{error.message}</p>
       <button
         type="button"
         onClick={reset}

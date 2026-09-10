@@ -12,10 +12,10 @@ import { SwingPanel } from "@/components/dashboard/swing-setup";
 import { ChartPatternMini } from "@/components/dashboard/chart-pattern-board";
 import { DeskBoard } from "@/components/dashboard/board";
 import { DeskErrorBoundary } from "@/components/dashboard/error-boundary";
-import { Panel, Drawer } from "@/components/dashboard/primitives";
+import { ThemeToggle } from "@/components/dashboard/theme-toggle";
+import { Panel, Drawer, Chg, EmaPills } from "@/components/dashboard/primitives";
 import { Button } from "@/components/ui/button";
 import { PATTERN_LABEL, inr } from "@/lib/format";
-import { Chg, EmaPills } from "@/components/dashboard/primitives";
 import { indiaMarketDate, indiaSession, shouldRefreshTape, shouldRenewDhanToken } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import {
@@ -336,7 +336,7 @@ export function MarketDesk() {
   }
 
   return (
-    <div className="flex h-full min-h-dvh flex-col overflow-hidden bg-[#0b1220] text-slate-100">
+    <div className="desk-root flex h-full min-h-dvh flex-col overflow-hidden bg-[#0b1220] text-slate-100">
       <header className="relative z-30 shrink-0 border-b border-white/10 bg-[#0b1220]">
         <div className="flex flex-wrap items-center gap-2 px-3 py-2">
           <div className="flex min-w-0 items-center gap-2.5">
@@ -387,6 +387,7 @@ export function MarketDesk() {
                   </option>
                 ))}
               </select>
+              <ThemeToggle />
               <button
                 type="button"
                 id="dhan-keys-link"

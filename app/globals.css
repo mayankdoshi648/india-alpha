@@ -128,3 +128,115 @@
     @apply font-sans;
   }
 }
+
+/* Light desk: the tape uses navy hex classes; remap those surfaces when .dark is off. */
+html:not(.dark) .desk-root {
+  color: var(--foreground);
+  background-color: var(--background) !important;
+}
+
+html:not(.dark) .desk-root [class*="bg-[#0b1220]"],
+html:not(.dark) .desk-root [class*="bg-[#070b14]"] {
+  background-color: var(--background) !important;
+}
+
+html:not(.dark) .desk-root [class*="bg-[#0b1424]"],
+html:not(.dark) .desk-root [class*="bg-[#0c1526]"],
+html:not(.dark) .desk-root [class*="bg-[#0d1524]"],
+html:not(.dark) .desk-root [class*="bg-[#0e1728]"],
+html:not(.dark) .desk-root [class*="bg-[#111b2e]"],
+html:not(.dark) .desk-root [class*="bg-[#121b2c]"],
+html:not(.dark) .desk-root [class*="bg-[#152033]"] {
+  background-color: var(--card) !important;
+}
+
+html:not(.dark) .desk-root [class*="bg-cyan-950"] {
+  background-color: color-mix(in oklch, var(--primary) 12%, var(--background));
+}
+
+html:not(.dark) .desk-root [class*="bg-white/["] {
+  background-color: var(--muted);
+}
+
+html:not(.dark) .desk-root .text-white:not([class*="bg-emerald"]):not([class*="bg-rose"]),
+html:not(.dark) .desk-root .text-slate-50,
+html:not(.dark) .desk-root .text-slate-100,
+html:not(.dark) .desk-root .text-slate-200 {
+  color: var(--foreground);
+}
+
+html:not(.dark) .desk-root .text-slate-300,
+html:not(.dark) .desk-root .text-slate-400,
+html:not(.dark) .desk-root .text-slate-500 {
+  color: var(--muted-foreground);
+}
+
+html:not(.dark) .desk-root .text-cyan-100,
+html:not(.dark) .desk-root .text-cyan-200 {
+  color: var(--primary);
+}
+
+html:not(.dark) .desk-root [class*="bg-rose-950"] {
+  background-color: color-mix(in oklch, oklch(0.7 0.16 20) 22%, var(--background));
+}
+
+html:not(.dark) .desk-root [class*="bg-emerald-950"] {
+  background-color: color-mix(in oklch, oklch(0.72 0.14 160) 22%, var(--background));
+}
+
+html:not(.dark) .desk-root [class*="bg-amber-950"] {
+  background-color: color-mix(in oklch, oklch(0.78 0.14 85) 22%, var(--background));
+}
+
+html:not(.dark) .desk-root [class*="bg-orange-950"],
+html:not(.dark) .desk-root [class*="bg-[#3a1d18]"] {
+  background-color: color-mix(in oklch, oklch(0.74 0.14 55) 22%, var(--background));
+}
+
+html:not(.dark) .desk-root .text-rose-200,
+html:not(.dark) .desk-root .text-rose-100 {
+  color: oklch(0.5 0.18 20);
+}
+
+html:not(.dark) .desk-root .text-emerald-200,
+html:not(.dark) .desk-root .text-emerald-100 {
+  color: oklch(0.45 0.13 160);
+}
+
+html:not(.dark) .desk-root .text-amber-200,
+html:not(.dark) .desk-root .text-amber-100 {
+  color: oklch(0.52 0.14 80);
+}
+
+html:not(.dark) .desk-root .text-orange-200,
+html:not(.dark) .desk-root .text-orange-100 {
+  color: oklch(0.52 0.15 50);
+}
+
+html:not(.dark) .desk-root .text-teal-200 {
+  color: oklch(0.45 0.1 185);
+}
+
+html:not(.dark) .desk-root .text-sky-200,
+html:not(.dark) .desk-root .text-sky-300 {
+  color: oklch(0.5 0.12 230);
+}
+
+html:not(.dark) .desk-root .text-violet-200,
+html:not(.dark) .desk-root .text-fuchsia-200,
+html:not(.dark) .desk-root .text-indigo-200 {
+  color: oklch(0.48 0.16 310);
+}
+
+html:not(.dark) .desk-root [class*="border-white/"] {
+  border-color: var(--border);
+}
+
+html:not(.dark) .desk-root [class*="divide-white/"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border);
+}
+
+html:not(.dark) .desk-root [class*="hover:bg-white/"]:hover,
+html:not(.dark) .desk-root [class*="hover:bg-[#111b2e]"]:hover {
+  background-color: color-mix(in oklch, var(--foreground) 6%, transparent);
+}
