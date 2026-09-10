@@ -18,7 +18,7 @@ import { Panel, Drawer } from "@/components/dashboard/primitives";
 import { Button } from "@/components/ui/button";
 import { PATTERN_LABEL, inr } from "@/lib/format";
 import { Chg, EmaPills } from "@/components/dashboard/primitives";
-import { indiaSession, shouldRefreshTape, shouldRenewDhanToken } from "@/lib/session";
+import { indiaMarketDate, indiaSession, shouldRefreshTape, shouldRenewDhanToken } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import {
   KeyRound,
@@ -93,10 +93,16 @@ export function MarketDesk({ view }: { view: DeskView }) {
         });
         if (baked.ok) {
           const json = (await baked.json()) as DashboardSnapshot;
-          setData(json);
-          setUniverse(json.universe ?? u);
-          setLoading(false);
-          painted = true;
+          const marketDate = indiaMarketDate();
+          const sameSession = json.asOf === marketDate;
+          // After the bell (or any day the bake is stale), wait for live quotes
+          // so post-close analysis is session close vs prev close, not demo %.
+          if (sameSession && indiaSession().open) {
+            setData(json);
+            setUniverse(json.universe ?? u);
+            setLoading(false);
+            painted = true;
+          }
         }
       }
       const res = await fetch(`/api/market?universe=${u}`, {
