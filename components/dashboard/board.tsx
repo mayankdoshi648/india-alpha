@@ -52,7 +52,7 @@ function Pane({
         className,
       )}
     >
-      <h2 className="sticky top-0 z-20 shrink-0 border-b border-white/8 bg-[#121b2c] px-3 py-2 text-[11px] font-semibold tracking-[0.16em] text-slate-400 uppercase">
+      <h2 className="shrink-0 border-b border-white/8 bg-[#121b2c] px-3 py-2 text-[11px] font-semibold tracking-[0.16em] text-slate-400 uppercase">
         {title}
       </h2>
       <div className="p-3 pb-8">{children}</div>
